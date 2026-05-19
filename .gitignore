@@ -1,4 +1,6 @@
 .vs/
+.idea/
+.vscode/settings.json
 
 # Python
 __pycache__/
@@ -7,16 +9,26 @@ __pycache__/
 .coverage
 htmlcov/
 backend/venv/
+.venv/
 backend/.env
+backend/.env.local
 backend/uploads/
 uploads/
 
 # Frontend
 frontend/node_modules/
 frontend/dist/
+frontend/.env.local
+
+# Environment files
+.env
+.env.local
+.env.*.local
 
 # Logs and local files
 *.log
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
 
@@ -24,3 +36,7 @@ Thumbs.db
 backend/*.log
 backend/*.out.log
 backend/*.err.log
+
+# Build artifacts
+dist/
+build/
