@@ -1,0 +1,26 @@
+.vs/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+backend/venv/
+backend/.env
+backend/uploads/
+uploads/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Logs and local files
+*.log
+.DS_Store
+Thumbs.db
+
+# Backend logs
+backend/*.log
+backend/*.out.log
+backend/*.err.log
