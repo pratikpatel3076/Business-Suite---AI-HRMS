@@ -234,6 +234,8 @@ e078a89 fix(secrets): require explicit production keys and add rotation
 | 2 | Docker entrypoint chooses fresh-install vs. migration | Verified (config review) | See below. |
 | 3 | CI fresh-install and Alembic round-trip check | Verified (config review; MySQL run not local) | See below. |
 | 4 | Database documentation and open-defect record | Documented | See below. |
+| 5 | Ignore local `*.bundle` artifacts | Done | — |
+| 6 | Final full suite and branch report | Verified (full suite passed) | See below. |
 
 ### Fresh installs vs. existing databases
 
@@ -248,3 +250,47 @@ CI's Alembic step was replaced with `python scripts/init_schema.py`, `alembic up
 Replaying the full migration chain on an empty database is broken. Revision `backend/alembic/versions/20260430_001_initial_hrms_schema.py` calls `Base.metadata.create_all(bind=bind)` against the live `app.db.base.Base` metadata instead of a frozen baseline. On a fresh DB this creates the entire current schema, so later revisions re-add those columns and fail with `duplicate column name: interests` (`C:\Users\prati\AppData\Local\Temp\opencode\alembic_empty_db.log`). The same pattern recurs in many later `op.add_column` migrations.
 
 This defect is **not fixed**. No migration or CI file was edited to hide it, and it must not be reported as fixed. Proposed fix: replace revision 001's `create_all` with a frozen baseline snapshot of the original schema, then re-verify the full `alembic upgrade head` chain from an empty MySQL 8 database, including the downgrade/upgrade round trip and the `user_sessions.session_id` unique-index check. Until that lands, fresh installs use `scripts/init_schema.py` and existing databases use `alembic upgrade head`.
+
+### Final full suite and branch report
+
+Ran the full backend suite once on the final tree with `INSTALLED_APPS=hrms,crm,project_management ENVIRONMENT=test python -m pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25`: **261 passed, 0 failed, 307 warnings in 283.89s (0:04:43)**. Log: `C:\Users\prati\AppData\Local\Temp\opencode\full_suite_fresh_install.log`.
+
+`git log origin/main..HEAD --oneline` was captured before this item's AUDIT commit and listed 35 commits: the five from this pass plus 30 from earlier passes. This item's AUDIT commit is added on top. Nothing was merged or pushed, and no migration file was edited in this pass.
+
+```text
+3e12d77 chore: ignore local bundle artifacts
+21fa9ee docs(db): document fresh install flow and open migration defect
+3ff714f ci: verify fresh schema init and Alembic round trip
+a052bd5 fix(docker): initialize empty databases on container start
+b612fab feat(db): add fresh-install schema initializer
+dd4e2a1 docs(security): record final full-suite result and branch report
+9311528 docs(security): report empty-database Alembic baseline defect
+27da043 fix(security): add 30-second refresh replay grace window
+1b0f7b4 fix(security): derive asset URL signing key
+68308ad fix(security): complete upload prefix authorization coverage
+8934bf7 docs(security): record final full-suite result
+531930a docs: warn that deploy invalidates existing sessions
+8e82d7e ci: add CI, Docker stack, lint config, and security policy
+4256128 fix(auth): require Origin and CSRF header for cookie auth
+09ff76a fix(auth): enforce Redis-backed rate limits with proxy-safe IP keys
+f55ccc0 fix(config): restrict environments and harden cookie/logging defaults
+344866a fix(startup): keep production schema under Alembic control
+dbfdbb9 fix(assets): issue signed single-path URLs instead of query tokens
+a5a9c6c fix(uploads): authorize stored URLs by prefix and deny unknown paths
+c5a9a95 docs(security): record final full-suite result in audit
+18eb4d1 test(routes): add generator sanity checks and refactor for import
+0bc7134 perf(tests): skip middleware audit writes in test environment
+1d28066 test(crm): enable all apps by default and verify tenant isolation
+2baf827 docs(security): rewrite audit with honest verification statuses
+bd2da92 fix(backend): support nested FastAPI routers in route checks
+952a4df fix(backend): repair suite regressions from security hardening
+3ee5fbc build(deps): upgrade Python and frontend dependencies
+a606ffa docs(security): add route access-control matrix
+d07e9cb fix(auth): harden token storage, JWT claims, and refresh rotation
+0d91e9d fix(cors): harden allowed methods and headers
+563cc80 feat(auth): rate-limit authentication endpoints
+3b3cae4 fix(webhooks): verify HMAC signatures for inbound webhooks
+e078a89 fix(secrets): require explicit production keys and add rotation
+22fa128 fix(uploads): require authentication for uploaded file downloads
+6004e37 fix(seed): make demo data opt-in and block production seeding
+```
