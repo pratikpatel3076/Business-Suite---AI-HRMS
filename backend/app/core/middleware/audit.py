@@ -48,6 +48,14 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         return any(path.startswith(prefix) for prefix in self.SKIP_PREFIXES)
 
     async def _log_request(self, request: Request, status_code: int, duration_ms: int, error: Optional[Exception] = None):
+        if settings.ENVIRONMENT == "test":
+            # The test suite overrides get_db with an in-memory session, but
+            # middleware cannot use that override. Opening SessionLocal here
+            # would attempt a real MySQL connection (~4s timeout per request)
+            # and the failure is swallowed, so tests paid the cost for no data.
+            # Audit persistence is not under test; fixtures insert rows directly.
+            return
+
         from app.db.session import SessionLocal
         from app.models.audit import AuditLog
         from app.core.security import verify_access_token
