@@ -44,3 +44,31 @@ def test_auth_rate_limit_uses_configured_limit():
     configured = limiter._route_limits["app.api.v1.auth.login"][0].limit
     assert str(configured).startswith(str(settings.RATE_LIMIT_PER_MINUTE))
 
+
+def test_cors_uses_explicit_methods_and_headers(client):
+    response = client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK
+    allow_methods = response.headers["access-control-allow-methods"]
+    assert "*" not in allow_methods
+    assert "POST" in allow_methods
+    allow_headers = response.headers["access-control-allow-headers"]
+    assert "*" not in allow_headers
+    assert "authorization" in allow_headers.lower()
+
+
+def test_cors_rejects_unlisted_method(client):
+    response = client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "TRACE",
+        },
+    )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
