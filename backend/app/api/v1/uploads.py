@@ -13,9 +13,11 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.deps import get_current_user_for_asset
+from app.core.deps import get_current_user_for_asset, get_db
+from app.core.upload_auth import authorize_upload_access
 from app.models.user import User
 
 router = APIRouter(prefix="/uploads", tags=["Uploads"])
@@ -55,8 +57,12 @@ def _safe_upload_path(relative_path: str) -> Path:
 @router.get("/{file_path:path}")
 def download_upload(
     file_path: str,
-    _current_user: User = Depends(get_current_user_for_asset),
+    current_user: User = Depends(get_current_user_for_asset),
+    db: Session = Depends(get_db),
 ) -> FileResponse:
+    # Resolve first so traversal/symlink attempts stay indistinguishable from
+    # a missing file, then apply per-prefix authorization.
     path = _safe_upload_path(file_path)
+    authorize_upload_access(current_user, db, file_path)
     media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     return FileResponse(path, media_type=media_type)

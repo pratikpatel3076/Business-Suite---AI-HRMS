@@ -27,6 +27,26 @@ Status values:
 | 11 | Frontend production build has not been verified after security changes | Medium | Verified | `npm run build` succeeds with Vite 8.3.8 and React Router 7.18.6 after adapting the Vite config and axios mutation typing. | 3ee5fbc |
 | 12 | Product naming still contains the old project name | Low | Deferred | Skipped by user; rename will be handled in a separate run. | — |
 
+## Follow-up hardening pass
+
+Statuses below describe the current follow-up pass only. Each item is committed separately; the final full-suite result is recorded in item 9.
+
+| # | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| 1 | Upload URL prefix authorization | Fixed (targeted tests pass) | See below. |
+| 2 | Signed single-path asset URLs; remove `?token=`; 15-minute access tokens | Pending | — |
+| 3 | Alembic-only schema changes in production | Pending | — |
+| 4 | Environment allowlist and cookie/logging safety | Pending | — |
+| 5 | Rate limiting per IP + email, Redis storage, proxy docs | Pending | — |
+| 6 | Refresh/logout origin checks and rotated-token reuse revocation | Pending | — |
+| 7 | CI, Docker, ruff, SECURITY.md, .env.example | Pending | — |
+| 8 | Release notes for session invalidation | Pending | — |
+| 9 | Final full suite | Pending | — |
+
+### Item 1 — upload authorization
+
+Stored URLs are now checked against an explicit prefix allowlist in `app/core/upload_auth.py`; **unmapped prefixes are denied for every user, including admins and HR**. Employee documents and certificates resolve the owning employee from the DB row (`EmployeeDocument`, `EmployeeCertificate`, `GeneratedDocument`, education/experience URLs, profile photo) with a path-id fallback, and allow only the owner, HR (`employee_sensitive_view`), or an admin. Payroll/statutory/F&F exports require `payroll_view`; resumes and BGV reports require `recruitment_view`/`recruitment_manage`. Low-sensitivity directory images and explicitly mapped module prefixes have their own rules. `tests/test_upload_authorization.py` covers employee A vs employee B, owner access, HR access, unmapped prefixes, and permission-gated prefixes. Targeted run with `tests/test_secure_uploads.py`: **25 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item1_uploads.log`).
+
 ## Task 8 — auth surface review (report before fixes)
 
 | Area | Observation | Assessment | Action |
@@ -83,4 +103,5 @@ These are explicit, open gaps. None is claimed as fixed or validated:
 - FastAPI nested-router artifact fixed in `bd2da92`; webhook suite re-run — 10 passed.
 - Suite slowness diagnosis: `pytest --collect-only -q` reports 197 tests in 0.26s. A fixed five-test sample (auth login, auth refresh, CRM tenant isolation, Form 16, PMS project access) took **64.79s** before the fix (logs: `C:\Users\prati\AppData\Local\Temp\opencode\sample_before.log`), with ~4.5s setup and ~4s per HTTP call. `AuditLogMiddleware` opened `SessionLocal()` on every request; in tests that points at an absent MySQL server and each connection attempt cost ~4.08s before the exception was swallowed. No test depends on middleware-generated audit rows (fixtures insert them directly), so persistence is skipped when `ENVIRONMENT=test`. The same five tests then took **3.90s**, all passing (`C:\Users\prati\AppData\Local\Temp\opencode\sample_after.log`). Production audit logging is unchanged.
 - `alembic heads` — single head `20260513_034`. MySQL upgrade/downgrade/upgrade could not be executed: Docker daemon unavailable.
-- **Final full suite (run exactly once, after all fixes):** `cd backend && pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25` with `INSTALLED_APPS=hrms,crm,project_management` — **200 passed, 0 failed, 307 warnings in 194.87s (0:03:14)**. Log: `C:\Users\prati\AppData\Local\Temp\opencode\full_suite_final.log`. The shell wrapper reports exit code 1 because PowerShell's `*>` stream redirect writes native stderr as error records; the pytest log itself records 200 passed and no failures.
+- **Prior full suite** (before the follow-up hardening pass): `cd backend && pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25` with `INSTALLED_APPS=hrms,crm,project_management` — **200 passed, 0 failed, 307 warnings in 194.87s (0:03:14)**. Log: `C:\Users\prati\AppData\Local\Temp\opencode\full_suite_final.log`. The shell wrapper reports exit code 1 because PowerShell's `*>` stream redirect writes native stderr as error records; the pytest log itself records 200 passed and no failures.
+- Follow-up item 1: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_upload_authorization.py tests/test_secure_uploads.py` — **25 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item1_uploads.log`).
