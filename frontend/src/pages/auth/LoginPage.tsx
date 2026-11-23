@@ -112,7 +112,7 @@ export default function LoginPage() {
   const loginModule = getLoginModule(location.pathname);
   const loginConfig = moduleLogins[loginModule];
   const loginTheme = loginThemes[loginModule];
-  const { setTokens, setUser } = useAuthStore();
+  const { setAccessToken, setUser } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [loginPhase, setLoginPhase] = useState<"credentials" | "mfa">("credentials");
   const [mfaToken, setMfaToken] = useState<string | null>(null);
@@ -144,11 +144,12 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
     const ssoError = params.get("sso_error");
-    if (accessToken && refreshToken) {
+    if (accessToken) {
+      // The refresh token is delivered as an HttpOnly cookie by the SSO
+      // callback; only the short-lived access token is placed in the URL.
       window.history.replaceState({}, "", window.location.pathname);
-      setTokens(accessToken, refreshToken);
+      setAccessToken(accessToken);
       authApi.me().then((res) => {
         setUser({
           id: res.data.id,
@@ -164,7 +165,7 @@ export default function LoginPage() {
       window.history.replaceState({}, "", window.location.pathname);
       setInlineError(ssoError.replace(/_/g, " "));
     }
-  }, [loginConfig.afterLogin, navigate, setTokens, setUser]);
+  }, [loginConfig.afterLogin, navigate, setAccessToken, setUser]);
 
   const onSubmit = async (data: LoginForm) => {
     try {
@@ -175,9 +176,9 @@ export default function LoginPage() {
         setInlineError("");
         return;
       }
-      const { access_token, refresh_token, user_id, email, role, is_superuser, employee_id } = res.data;
+      const { access_token, user_id, email, role, is_superuser, employee_id } = res.data;
 
-      setTokens(access_token, refresh_token);
+      setAccessToken(access_token);
       setUser({ id: user_id, email, role, is_superuser, employee_id });
 
       toast({ title: "Welcome back!", variant: "default" });
@@ -193,8 +194,8 @@ export default function LoginPage() {
   const verifyMfa = useMutation({
     mutationFn: () => authApi.mfaVerify({ mfa_token: mfaToken, code: mfaCode, method: mfaMethod }),
     onSuccess: (res) => {
-      const { access_token, refresh_token, user_id, email, role, is_superuser, employee_id } = res.data;
-      setTokens(access_token, refresh_token);
+      const { access_token, user_id, email, role, is_superuser, employee_id } = res.data;
+      setAccessToken(access_token);
       setUser({ id: user_id, email, role, is_superuser, employee_id });
       navigate(loginConfig.afterLogin);
     },

@@ -47,6 +47,15 @@ Uploaded files are served only through authenticated API routes:
 https://api.yourdomain.com/api/v1/uploads
 ```
 
+## Session cookies
+
+The refresh token is set by the backend as an `HttpOnly`, `Secure`, `SameSite=Strict` cookie scoped to `/api/v1/auth`. `SameSite=Strict` cookies are not sent across sites, so a split-origin setup (`hrms.yourdomain.com` frontend calling `api.yourdomain.com`) will break silent refresh. Use one of:
+
+1. **Recommended:** proxy `/api/*` through the frontend origin so the browser sees a single site (see the same-origin configuration below).
+2. Change the backend cookie to `SameSite=None; Secure` and set `allow_credentials=True` with explicit CORS origins. This weakens CSRF protection and must be a deliberate decision.
+
+In production, enable CORS credentials only for the exact frontend origin and keep the method/header allowlists explicit.
+
 ## Background Workers
 
 Start the task worker:

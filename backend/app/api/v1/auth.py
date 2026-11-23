@@ -1,5 +1,6 @@
+import hashlib
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from app.core.deps import get_current_active_superuser, get_db, get_current_user
@@ -7,7 +8,7 @@ from app.core.config import settings
 from app.core.rate_limit import AUTH_RATE_LIMIT, limiter
 from app.core.security import (
     verify_password, create_access_token, create_refresh_token,
-    verify_refresh_token, get_password_hash
+    verify_access_token, verify_refresh_token, get_password_hash
 )
 from app.core.mfa import (
     generate_recovery_codes,
@@ -75,11 +76,53 @@ def _ensure_module_login_allowed(user: User, module: str | None) -> None:
         )
 
 
-def _token_response(user: User) -> TokenResponse:
+REFRESH_COOKIE_NAME = "refresh_token"
+REFRESH_COOKIE_PATH = f"{settings.API_V1_STR}/auth"
+
+
+def _hash_refresh_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        token,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path=REFRESH_COOKIE_PATH,
+        httponly=True,
+        secure=settings.ENVIRONMENT.lower() == "production",
+        samesite="strict",
+    )
+
+
+def _create_session(db: Session, user: User, refresh_token: str, request: Request | None = None) -> str:
+    payload = verify_refresh_token(refresh_token)
+    if not payload:
+        raise RuntimeError("Failed to decode freshly created refresh token")
+    session_id = payload["jti"]
+    session = UserSession(
+        user_id=user.id,
+        session_id=session_id,
+        session_token_hash=_hash_refresh_token(refresh_token),
+        ip_address=request.client.host if request and request.client else None,
+        user_agent=request.headers.get("user-agent") if request else None,
+        status="Active",
+        expires_at=datetime.fromtimestamp(payload["exp"], tz=timezone.utc),
+        last_seen_at=datetime.now(timezone.utc),
+    )
+    db.add(session)
+    db.commit()
+    return session_id
+
+
+def _token_response(user: User, db: Session, response: Response, request: Request | None = None) -> TokenResponse:
+    refresh_token = create_refresh_token(user.id)
+    session_id = _create_session(db, user, refresh_token, request)
+    _set_refresh_cookie(response, refresh_token)
     employee = getattr(user, "employee", None)
     return TokenResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=create_refresh_token(user.id),
+        access_token=create_access_token(user.id, session_id=session_id),
         user_id=user.id,
         email=user.email,
         role=user.role.name if user.role else None,
@@ -122,15 +165,24 @@ def check_lockout(db: Session, user: User) -> dict | None:
 
 def _create_mfa_token(user: User) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=5)
-    return jwt.encode({"sub": str(user.id), "scope": "mfa", "exp": expire}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return jwt.encode(
+        {"sub": str(user.id), "scope": "mfa", "type": "mfa", "exp": expire},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
 
 
 def _decode_mfa_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            options={"require_exp": True},
+        )
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid MFA token")
-    if payload.get("scope") != "mfa":
+    if payload.get("scope") != "mfa" or payload.get("type") != "mfa":
         raise HTTPException(status_code=401, detail="Invalid MFA token")
     return payload
 
@@ -146,7 +198,7 @@ def _active_totp(db: Session, user_id: int) -> MFAMethod | None:
 
 @router.post("/login")
 @limiter.limit(AUTH_RATE_LIMIT)
-def login(request_data: LoginRequest, request: Request, db: Session = Depends(get_db)):
+def login(request_data: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request_data.email).first()
     if user:
         lockout = check_lockout(db, user)
@@ -172,12 +224,12 @@ def login(request_data: LoginRequest, request: Request, db: Session = Depends(ge
     if user.mfa_enabled:
         return {"mfa_required": True, "mfa_token": _create_mfa_token(user), "mfa_methods": ["totp", "recovery"]}
 
-    return _token_response(user)
+    return _token_response(user, db, response, request)
 
 
 @router.post("/mfa/verify")
 @limiter.limit(AUTH_RATE_LIMIT)
-def verify_mfa_login(data: MFAVerifyRequest, request: Request, db: Session = Depends(get_db)):
+def verify_mfa_login(data: MFAVerifyRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     """Complete the second login phase using TOTP or a recovery code."""
     payload = _decode_mfa_token(data.mfa_token)
     user = db.query(User).filter(User.id == int(payload["sub"])).first()
@@ -208,33 +260,38 @@ def verify_mfa_login(data: MFAVerifyRequest, request: Request, db: Session = Dep
     user.last_login = datetime.now(timezone.utc)
     _log_attempt(db, user, user.email, True, request=request, mfa_attempted=True, mfa_success=True)
     db.commit()
-    return _token_response(user)
+    return _token_response(user, db, response, request)
 
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit(AUTH_RATE_LIMIT)
-def refresh_token(data: RefreshTokenRequest, db: Session = Depends(get_db)):
-    payload = verify_refresh_token(data.refresh_token)
+def refresh_token(
+    data: RefreshTokenRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    token = data.refresh_token or request.cookies.get(REFRESH_COOKIE_NAME)
+    payload = verify_refresh_token(token) if token else None
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    session = db.query(UserSession).filter(
+        UserSession.session_token_hash == _hash_refresh_token(token),
+        UserSession.status == "Active",
+    ).first()
+    if not session:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh session is no longer active")
 
     user = db.query(User).filter(User.id == int(payload["sub"])).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
-    access_token = create_access_token(user.id)
-    refresh_token_new = create_refresh_token(user.id)
+    session.status = "Rotated"
+    session.last_seen_at = datetime.now(timezone.utc)
+    db.commit()
 
-    employee = getattr(user, "employee", None)
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token_new,
-        user_id=user.id,
-        email=user.email,
-        role=user.role.name if user.role else None,
-        is_superuser=user.is_superuser,
-        employee_id=employee.id if employee else None,
-    )
+    return _token_response(user, db, response, request)
 
 
 @router.get("/me", response_model=UserSchema)
@@ -267,9 +324,33 @@ def change_password(
 
 
 @router.post("/logout")
-def logout(current_user: User = Depends(get_current_user)):
-    # In a stateless JWT setup, logout is client-side token removal
-    # For production, implement token blacklisting with Redis
+def logout(
+    request: Request,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    auth = request.headers.get("Authorization", "")
+    payload = verify_access_token(auth[7:]) if auth.startswith("Bearer ") else None
+    session_id = payload.get("sid") if payload else None
+    if session_id:
+        db.query(UserSession).filter(
+            UserSession.user_id == current_user.id,
+            UserSession.status == "Active",
+            UserSession.session_id == session_id,
+        ).update({UserSession.status: "Revoked"}, synchronize_session=False)
+        db.commit()
+
+    refresh_token = request.cookies.get(REFRESH_COOKIE_NAME)
+    if refresh_token:
+        db.query(UserSession).filter(
+            UserSession.user_id == current_user.id,
+            UserSession.session_token_hash == _hash_refresh_token(refresh_token),
+            UserSession.status == "Active",
+        ).update({UserSession.status: "Revoked"}, synchronize_session=False)
+        db.commit()
+
+    response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
     return {"message": "Logged out successfully"}
 
 

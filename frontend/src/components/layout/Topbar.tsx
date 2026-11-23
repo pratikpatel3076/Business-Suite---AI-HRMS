@@ -43,6 +43,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
   const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
   const handleLogout = () => {
+    void authApi.logout().catch(() => undefined);
     logout();
     navigate(product.loginPath, { replace: true });
   };

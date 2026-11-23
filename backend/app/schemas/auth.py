@@ -11,7 +11,9 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    refresh_token: str
+    # The refresh token is delivered only as an HttpOnly cookie. The field is
+    # kept (always null) for backwards compatibility with older API clients.
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
     user_id: int
     email: str
@@ -36,7 +38,7 @@ class MFACodeRequest(BaseModel):
 
 
 class RefreshTokenRequest(BaseModel):
-    refresh_token: str
+    refresh_token: Optional[str] = None
 
 
 class PasswordResetRequest(BaseModel):
