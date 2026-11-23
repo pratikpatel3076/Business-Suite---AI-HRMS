@@ -185,9 +185,6 @@ class Settings(BaseSettings):
         self.ENCRYPTION_KEY = self.ENCRYPTION_KEY or secrets.token_urlsafe(48)
         return self
 
-    # Rate limiting
-    RATE_LIMIT_PER_MINUTE: int = 60
-
     @field_validator("DEBUG", mode="before")
     @classmethod
     def parse_debug(cls, v: Any) -> bool:

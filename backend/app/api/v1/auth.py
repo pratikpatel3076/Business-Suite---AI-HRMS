@@ -5,7 +5,14 @@ from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from app.core.deps import get_current_active_superuser, get_db, get_current_user
 from app.core.config import settings
-from app.core.rate_limit import AUTH_RATE_LIMIT, limiter
+from app.core.rate_limit import (
+    LOGIN_RATE_LIMIT,
+    MFA_RATE_LIMIT,
+    REFRESH_RATE_LIMIT,
+    get_email_key,
+    get_mfa_subject_key,
+    limiter,
+)
 from app.core.security import (
     verify_password, create_access_token, create_refresh_token,
     verify_access_token, verify_refresh_token, get_password_hash
@@ -199,7 +206,8 @@ def _active_totp(db: Session, user_id: int) -> MFAMethod | None:
 
 
 @router.post("/login")
-@limiter.limit(AUTH_RATE_LIMIT)
+@limiter.limit(LOGIN_RATE_LIMIT)
+@limiter.limit(LOGIN_RATE_LIMIT, key_func=get_email_key)
 def login(request_data: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request_data.email).first()
     if user:
@@ -230,7 +238,8 @@ def login(request_data: LoginRequest, request: Request, response: Response, db: 
 
 
 @router.post("/mfa/verify")
-@limiter.limit(AUTH_RATE_LIMIT)
+@limiter.limit(MFA_RATE_LIMIT)
+@limiter.limit(MFA_RATE_LIMIT, key_func=get_mfa_subject_key)
 def verify_mfa_login(data: MFAVerifyRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     """Complete the second login phase using TOTP or a recovery code."""
     payload = _decode_mfa_token(data.mfa_token)
@@ -266,7 +275,7 @@ def verify_mfa_login(data: MFAVerifyRequest, request: Request, response: Respons
 
 
 @router.post("/refresh", response_model=TokenResponse)
-@limiter.limit(AUTH_RATE_LIMIT)
+@limiter.limit(REFRESH_RATE_LIMIT)
 def refresh_token(
     data: RefreshTokenRequest,
     request: Request,

@@ -37,7 +37,7 @@ Statuses below describe the current follow-up pass only. Each item is committed 
 | 2 | Signed single-path asset URLs; remove `?token=`; 15-minute access tokens | Fixed (targeted tests pass; frontend build passes) | See below. |
 | 3 | Alembic-only schema changes in production | Fixed (targeted tests pass) | See below. |
 | 4 | Environment allowlist and cookie/logging safety | Fixed (targeted tests pass) | See below. |
-| 5 | Rate limiting per IP + email, Redis storage, proxy docs | Pending | — |
+| 5 | Rate limiting per IP + email, Redis storage, proxy docs | Fixed (targeted tests pass) | See below. |
 | 6 | Refresh/logout origin checks and rotated-token reuse revocation | Pending | — |
 | 7 | CI, Docker, ruff, SECURITY.md, .env.example | Pending | — |
 | 8 | Release notes for session invalidation | Pending | — |
@@ -58,6 +58,10 @@ Stored URLs are now checked against an explicit prefix allowlist in `app/core/up
 ### Item 4 — environment safety
 
 `ENVIRONMENT` now defaults to `production`, is restricted to `development`/`test`/`production`, and `ENVIRONMENT=test` is rejected outside pytest. The refresh cookie is `Secure` in every environment except local development; the test `TestClient` uses an https base URL so it still exercises the cookie flow. `AuditLogMiddleware._log_request` now logs persistence and token-parsing failures with `logger.exception` instead of swallowing them silently, and redacts `sig` alongside token parameters. `tests/test_environment_safety.py` covers the default, invalid values, the pytest guard, cookie flags, and error logging. Targeted run with the auth suites: **40 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item4_environment.log`).
+
+### Item 5 — auth rate limiting
+
+`app/core/rate_limit.py` now defines fixed limits: login and `POST /api/v1/auth/mfa/verify` are each `5/minute` **both** per source IP (default key) and per account (`get_email_key` for login, `get_mfa_subject_key` for the MFA token subject); `POST /api/v1/auth/refresh` is `30/minute` per IP. Counters use `storage_uri=settings.REDIS_URL`; the in-memory fallback is enabled only when `ENVIRONMENT=development`, so test and production fail closed if Redis is unavailable. The obsolete `RATE_LIMIT_PER_MINUTE` setting was removed from config and `.env.example`. `docs/deployment_split_frontend_backend.md` now documents `--proxy-headers`/`--forwarded-allow-ips` with trusted proxy CIDRs, and the new `backend/Dockerfile` starts Uvicorn with those flags and a `FORWARDED_ALLOW_IPS` override. `tests/test_auth_limits.py` covers constants, route wiring, Redis/fallback config, normalized key funcs, and per-IP/per-account 429 behavior with an isolated in-memory limiter. Targeted run with the auth/environment suites: **37 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item5_rate_limits.log`).
 
 ## Task 8 — auth surface review (report before fixes)
 
@@ -120,3 +124,4 @@ These are explicit, open gaps. None is claimed as fixed or validated:
 - Follow-up item 2: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_signed_asset_urls.py tests/test_upload_authorization.py tests/test_secure_uploads.py` — **33 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item2_signed.log`); `npm run build` succeeded (`C:\Users\prati\AppData\Local\Temp\opencode\item2_frontend_build.log`).
 - Follow-up item 3: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_startup_schema.py tests/test_secret_configuration.py` — **14 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item3_startup.log`).
 - Follow-up item 4: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_environment_safety.py tests/test_secret_configuration.py tests/test_startup_schema.py tests/test_auth.py tests/test_auth_hardening.py` — **40 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item4_environment.log`).
+- Follow-up item 5: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_auth_limits.py tests/test_auth.py tests/test_auth_hardening.py tests/test_environment_safety.py` — **37 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item5_rate_limits.log`).
