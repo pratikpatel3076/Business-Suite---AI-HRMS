@@ -27,6 +27,9 @@ def _make_unraisablehook(default_hook):
 sys.unraisablehook = _make_unraisablehook(sys.unraisablehook)
 
 os.environ.setdefault("ENVIRONMENT", "test")
+# Demo fixtures are intentionally opt-in in application config; the test
+# suite needs them, so enable them explicitly before settings are imported.
+os.environ.setdefault("SEED_DEMO_DATA", "true")
 os.environ.setdefault("MYSQL_PASSWORD", "")
 
 from app.main import app

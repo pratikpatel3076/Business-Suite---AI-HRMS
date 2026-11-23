@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     INSTALLED_APPS: Union[List[str], str] = ["hrms"]
 
+    # Data seeding (development/test only; production must use scripts/create_admin.py)
+    SEED_DEMO_DATA: bool = False
     # Security
     SECRET_KEY: str = secrets.token_urlsafe(48)
     SECRET_KEY_PREVIOUS: Optional[str] = None
@@ -151,3 +153,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+def demo_seeding_enabled() -> bool:
+    return settings.ENVIRONMENT.lower() != "production" and settings.SEED_DEMO_DATA

@@ -333,26 +333,29 @@ export default function LoginPage() {
             )}
             {inlineError && loginPhase === "credentials" && <p className="mt-3 text-xs text-red-400">{inlineError}</p>}
 
-            <div className="mt-4 space-y-2 rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
-              <p className="text-xs font-medium text-blue-200/80">Role logins</p>
-              {loginConfig.demoLogins.map((login) => (
-                <button
-                  key={login.email}
-                  type="button"
-                  className="w-full rounded-md border border-white/10 bg-white/5 p-2 text-left transition hover:bg-white/10"
-                  onClick={() => {
-                    setValue("email", login.email, { shouldValidate: true });
-                    setValue("password", login.password, { shouldValidate: true });
-                  }}
-                >
-                  <span className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-semibold text-white">{login.label}</span>
-                    <span className="text-[11px] text-blue-200/60">{login.email}</span>
-                  </span>
-                  <span className="mt-1 block text-[11px] text-blue-200/45">{login.description}</span>
-                </button>
-              ))}
-            </div>
+            {/* Dev-only seeded accounts. Production builds never expose these credentials. */}
+            {import.meta.env.DEV && (
+              <div className="mt-4 space-y-2 rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
+                <p className="text-xs font-medium text-blue-200/80">Role logins (development only)</p>
+                {loginConfig.demoLogins.map((login) => (
+                  <button
+                    key={login.email}
+                    type="button"
+                    className="w-full rounded-md border border-white/10 bg-white/5 p-2 text-left transition hover:bg-white/10"
+                    onClick={() => {
+                      setValue("email", login.email, { shouldValidate: true });
+                      setValue("password", login.password, { shouldValidate: true });
+                    }}
+                  >
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold text-white">{login.label}</span>
+                      <span className="text-[11px] text-blue-200/60">{login.email}</span>
+                    </span>
+                    <span className="mt-1 block text-[11px] text-blue-200/45">{login.description}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

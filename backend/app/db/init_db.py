@@ -1,5 +1,6 @@
 from datetime import date
 from sqlalchemy.orm import Session
+from app.core.config import demo_seeding_enabled
 from app.core.security import get_password_hash
 from app.models.user import User, Role, Permission
 from app.models.target import FeatureCatalog, FeaturePlan, IndustryTarget
@@ -737,6 +738,11 @@ def init_db(db: Session) -> None:
 
     db.commit()
 
+    # Demo data is opt-in and never created in production. Existing users are
+    # left untouched: seeding must never change privileges or activation state.
+    if not demo_seeding_enabled():
+        return
+
     # Demo organization used by seeded role logins.
     company = db.query(Company).filter(Company.name == "Demo Company").first()
     if not company:
@@ -776,10 +782,6 @@ def init_db(db: Session) -> None:
             )
             db.add(user)
             db.flush()
-        else:
-            user.role_id = role_map[item["role"]].id
-            user.is_superuser = item["is_superuser"]
-            user.is_active = True
         seeded_users[item["role"]] = user
 
     from app.module_registry import is_app_enabled

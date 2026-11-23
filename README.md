@@ -90,6 +90,17 @@ OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 ```
 
+### Development-only demo data
+
+Demo users and sample CRM records are **not** part of a normal installation. They are created only when both `ENVIRONMENT != production` and `SEED_DEMO_DATA=true` are set, and they are intended strictly for local development and automated tests. Never use demo credentials outside a disposable environment. For a production deployment, create the first administrator explicitly:
+
+```bash
+cd backend
+ADMIN_EMAIL=ops@example.com ADMIN_PASSWORD='<strong-password>' python scripts/create_admin.py
+```
+
+`ADMIN_EMAIL`/`ADMIN_PASSWORD` may be omitted to use interactive prompts. The password must be at least 12 characters and include uppercase, lowercase, and numeric characters.
+
 ## Local Frontend Setup
 
 ```bash
