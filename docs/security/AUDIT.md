@@ -161,7 +161,7 @@ Statuses below describe the current pass only. Each item is committed separately
 | 1 | Upload prefix inventory and authorization | Fixed (targeted tests pass) | See below. |
 | 2 | Derived asset-URL signing key | Fixed (targeted tests pass) | See below. |
 | 3 | 30-second refresh replay grace window | Fixed (targeted tests pass) | See below. |
-| 4 | Empty-database Alembic baseline review | Open (empty-DB upgrade fails; report-only) | See below. |
+| 4 | Empty-database Alembic baseline review | KNOWN OPEN DEFECT (still open; see fresh-install follow-up below) | See below. |
 | 5 | Final full suite and branch report | Fixed (full suite passed) | See below. |
 
 ### Second-pass item 1 — upload prefix inventory and authorization
@@ -225,3 +225,26 @@ e078a89 fix(secrets): require explicit production keys and add rotation
 22fa128 fix(uploads): require authentication for uploaded file downloads
 6004e37 fix(seed): make demo data opt-in and block production seeding
 ```
+
+## Fresh-install schema initialization (follow-up)
+
+| # | Change | Status | Evidence |
+| --- | --- | --- | --- |
+| 1 | `scripts/init_schema.py` for fresh installs | Verified (targeted tests pass) | See below. |
+| 2 | Docker entrypoint chooses fresh-install vs. migration | Verified (config review) | See below. |
+| 3 | CI fresh-install and Alembic round-trip check | Verified (config review; MySQL run not local) | See below. |
+| 4 | Database documentation and open-defect record | Documented | See below. |
+
+### Fresh installs vs. existing databases
+
+`backend/scripts/init_schema.py` is the only supported path for a fresh, empty database. It loads the common models plus the models of every installed app, runs `Base.metadata.create_all()`, and stamps the single Alembic head programmatically through `MigrationContext`. It exits 1 with a clear message if the database already contains an `alembic_version` table or any application table, unless `--force` is passed. `backend/tests/test_init_schema.py` covers an empty SQLite DB (all app tables created and head stamped), refusal on a non-empty DB, refusal when only the version table exists, `--force`, `--check-empty`, and the real CLI exit code — **6 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item1_init_schema_tests.log`).
+
+Existing databases must use `alembic upgrade head`. `backend/docker-entrypoint.sh` now uses `init_schema.py --check-empty` when `RUN_MIGRATIONS_ON_START=true`: an empty DB is initialized and stamped, otherwise the normal migration chain runs.
+
+CI's Alembic step was replaced with `python scripts/init_schema.py`, `alembic upgrade head` (expected no-op), `alembic downgrade -1`, `alembic upgrade head`, then an `information_schema` SQL assertion that `user_sessions.session_id` and a unique index on it exist (the head revision adds both). No `continue-on-error` was added and no other job was changed. The MySQL portion has not been executed locally because the Docker daemon is unavailable; it is recorded as config-reviewed, not locally verified.
+
+### KNOWN OPEN DEFECT — full Alembic chain on an empty database
+
+Replaying the full migration chain on an empty database is broken. Revision `backend/alembic/versions/20260430_001_initial_hrms_schema.py` calls `Base.metadata.create_all(bind=bind)` against the live `app.db.base.Base` metadata instead of a frozen baseline. On a fresh DB this creates the entire current schema, so later revisions re-add those columns and fail with `duplicate column name: interests` (`C:\Users\prati\AppData\Local\Temp\opencode\alembic_empty_db.log`). The same pattern recurs in many later `op.add_column` migrations.
+
+This defect is **not fixed**. No migration or CI file was edited to hide it, and it must not be reported as fixed. Proposed fix: replace revision 001's `create_all` with a frozen baseline snapshot of the original schema, then re-verify the full `alembic upgrade head` chain from an empty MySQL 8 database, including the downgrade/upgrade round trip and the `user_sessions.session_id` unique-index check. Until that lands, fresh installs use `scripts/init_schema.py` and existing databases use `alembic upgrade head`.
