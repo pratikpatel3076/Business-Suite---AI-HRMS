@@ -98,6 +98,7 @@ class Settings(BaseSettings):
     CRM_OUTLOOK_CALENDAR_CLIENT_ID: str = ""
     CRM_OUTLOOK_CALENDAR_CLIENT_SECRET: str = ""
     CRM_CALENDAR_WEBHOOK_SECRET: str = ""
+    CRM_CALENDAR_WEBHOOK_ENABLED: bool = False
     CRM_WEBHOOK_BLOCK_PRIVATE_URLS: bool = True
 
     # File storage
