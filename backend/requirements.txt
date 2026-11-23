@@ -66,11 +66,16 @@ python-dateutil==2.9.0
 pytz==2024.1
 Babel==2.15.0
 
+# Security / CI tooling
+ruff==0.17.6
+pip-audit==2.10.1
+
 # Testing
 pytest==9.2.0
 pytest-asyncio==1.5.0
 httpx==0.28.1
 pytest-cov==7.1.0
+pytest-timeout==2.4.0
 factory-boy==3.3.0
 
 # Dev

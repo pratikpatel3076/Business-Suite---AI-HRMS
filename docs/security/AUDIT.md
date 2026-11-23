@@ -39,7 +39,7 @@ Statuses below describe the current follow-up pass only. Each item is committed 
 | 4 | Environment allowlist and cookie/logging safety | Fixed (targeted tests pass) | See below. |
 | 5 | Rate limiting per IP + email, Redis storage, proxy docs | Fixed (targeted tests pass) | See below. |
 | 6 | Refresh/logout origin checks and rotated-token reuse revocation | Fixed (targeted tests pass; frontend build passes) | See below. |
-| 7 | CI, Docker, ruff, SECURITY.md, .env.example | Pending | — |
+| 7 | CI, Docker, ruff, SECURITY.md, .env.example | Fixed (configs validated locally; remote CI not run) | See below. |
 | 8 | Release notes for session invalidation | Pending | — |
 | 9 | Final full suite | Pending | — |
 
@@ -68,6 +68,14 @@ Stored URLs are now checked against an explicit prefix allowlist in `app/core/up
 `POST /api/v1/auth/refresh` and `POST /api/v1/auth/logout` now call `_verify_cookie_auth_request`, which requires an `Origin` (or parsed `Referer`) exactly matching `BACKEND_CORS_ORIGINS` plus the `X-CSRF-Token: hrms-app` custom header. Wildcard origins are rejected. The refresh endpoint no longer accepts `refresh_token` from the request body; the token is read only from the HttpOnly cookie. The frontend sends the CSRF header on every API request and the backend CORS allowlist includes `X-CSRF-Token`. `docs/deployment_split_frontend_backend.md` documents the cross-site case: `SameSite=None; Secure` must not be adopted without the origin allowlist and CSRF header, and the cookie policy remains `Strict` by default.
 
 Replaying a rotated refresh token now finds the `Rotated` session row and revokes **every** active `UserSession` for that user before returning 401. `tests/test_auth_hardening.py` covers missing/unlisted origins, Referer fallback, missing CSRF header, body-token rejection, logout checks, and rotated-token replay revoking a second independent session. Targeted run: **33 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item6_csrf.log`).
+
+### Item 7 — CI, containers, lint config, and policy docs
+
+Added `.github/workflows/ci.yml` with two jobs. The backend job installs pinned requirements, runs `ruff check .`, runs the full pytest suite with `ENVIRONMENT: test`, performs an Alembic round trip against a MySQL 8 service container (`upgrade head` → `downgrade -1` → `upgrade head`), and runs `pip-audit -r requirements.txt` with only the two documented advisories ignored by ID so new findings still fail CI. The frontend job runs `npm ci`, `npm run build`, and `npm audit --audit-level=moderate`.
+
+Added root `ruff.toml` (critical error/undefined-name rules only) and pinned `ruff`/`pip-audit` in `backend/requirements.txt` so local and CI checks use the same versions. Added `backend/Dockerfile` (proxy-header Uvicorn command, now with an entrypoint), `backend/docker-entrypoint.sh` (optional `RUN_MIGRATIONS_ON_START`), `backend/.dockerignore`, `frontend/Dockerfile`, `frontend/nginx.conf` (SPA fallback plus `/api/` proxy with forwarded headers), and root `docker-compose.yml` with `api`, `mysql`, `redis`, and `web` services plus health checks and persistent volumes. `backend/.env.example` now documents all three signing/encryption keys and their previous-key rotation values, `SEED_DEMO_DATA`, `REDIS_URL`, the 15-minute access token, and the fact that demo fixtures are ignored in production. `SECURITY.md` records the reporting process, mandatory deployment controls, and accepted residual risks.
+
+Remote GitHub Actions was **not** executed because nothing was pushed. Local validation: `docker compose config --quiet` passed, both YAML files parsed with `yaml.safe_load`, `ruff check .` passed, the exact `pip-audit` command returned `No known vulnerabilities found, 3 ignored`, and `npm audit --audit-level=moderate` returned `0 vulnerabilities`. Docker image builds and the MySQL migration round trip were not run locally because the Docker daemon is unavailable; the round trip is now an explicit CI step.
 
 ## Task 8 — auth surface review (report before fixes)
 
@@ -132,3 +140,4 @@ These are explicit, open gaps. None is claimed as fixed or validated:
 - Follow-up item 4: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_environment_safety.py tests/test_secret_configuration.py tests/test_startup_schema.py tests/test_auth.py tests/test_auth_hardening.py` — **40 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item4_environment.log`).
 - Follow-up item 5: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_auth_limits.py tests/test_auth.py tests/test_auth_hardening.py tests/test_environment_safety.py` — **37 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item5_rate_limits.log`).
 - Follow-up item 6: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_auth_hardening.py tests/test_auth.py tests/test_auth_limits.py` — **33 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item6_csrf.log`); `npm run build` succeeded (`C:\Users\prati\AppData\Local\Temp\opencode\item6_frontend_build.log`).
+- Follow-up item 7 local config validation: `docker compose config --quiet` passed; `yaml.safe_load` parsed `.github/workflows/ci.yml` and `docker-compose.yml`; `ruff check .` passed; `pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-1325 --ignore-vuln PYSEC-2026-4298` reported `No known vulnerabilities found, 3 ignored`; `npm audit --audit-level=moderate` reported `0 vulnerabilities`.

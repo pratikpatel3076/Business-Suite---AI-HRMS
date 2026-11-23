@@ -1,0 +1,84 @@
+name: ai-hrms
+
+# Local development stack only. Production should supply real secrets and run
+# Alembic as an explicit deployment step (see docs/security/SECURITY.md).
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-local_root_password}
+      MYSQL_DATABASE: ${MYSQL_DB:-ai_hrms}
+      MYSQL_USER: ${MYSQL_USER:-hrms_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-local_dev_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-hrms_user}:${MYSQL_PASSWORD:-local_dev_password}@mysql:3306/${MYSQL_DB:-ai_hrms}?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/0
+      BACKEND_CORS_ORIGINS: '["http://localhost:8080"]'
+      BACKEND_PUBLIC_URL: http://localhost:8000
+      FRONTEND_PUBLIC_URL: http://localhost:8080
+      # Development placeholders only; override every one of these in .env.
+      SECRET_KEY: ${SECRET_KEY:-local-development-secret-key-change-me-0001}
+      REFRESH_SECRET_KEY: ${REFRESH_SECRET_KEY:-local-development-refresh-key-change-me-0002}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-local-development-encryption-key-0003}
+      ENCRYPTION_KEY_PREVIOUS: ${ENCRYPTION_KEY_PREVIOUS:-}
+      SEED_DEMO_DATA: "false"
+      RUN_MIGRATIONS_ON_START: "true"
+      # nginx is the only proxy in this stack.
+      FORWARDED_ALLOW_IPS: 127.0.0.1
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - uploads_data:/app/uploads
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  mysql_data:
+  redis_data:
+  uploads_data:
