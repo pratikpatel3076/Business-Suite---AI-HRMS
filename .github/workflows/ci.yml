@@ -53,15 +53,45 @@ jobs:
           SEED_DEMO_DATA: "true"
         run: pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25
 
-      - name: Alembic migration round trip on MySQL 8
+      - name: Fresh install schema and Alembic round trip on MySQL 8
         working-directory: backend
         env:
           ENVIRONMENT: development
+          INSTALLED_APPS: hrms,crm,project_management
           DATABASE_URL: mysql+pymysql://hrms_user:ci-password@127.0.0.1:3306/ai_hrms?charset=utf8mb4
         run: |
+          python scripts/init_schema.py
           alembic upgrade head
           alembic downgrade -1
           alembic upgrade head
+          python - <<'PY'
+          from sqlalchemy import create_engine, text
+
+          engine = create_engine(
+              "mysql+pymysql://hrms_user:ci-password@127.0.0.1:3306/ai_hrms?charset=utf8mb4"
+          )
+          with engine.connect() as connection:
+              column_count = connection.execute(
+                  text(
+                      "SELECT COUNT(*) FROM information_schema.COLUMNS "
+                      "WHERE TABLE_SCHEMA = DATABASE() "
+                      "AND TABLE_NAME = 'user_sessions' AND COLUMN_NAME = 'session_id'"
+                  )
+              ).scalar()
+              assert column_count == 1, "user_sessions.session_id is missing"
+
+              index_count = connection.execute(
+                  text(
+                      "SELECT COUNT(*) FROM information_schema.STATISTICS "
+                      "WHERE TABLE_SCHEMA = DATABASE() "
+                      "AND TABLE_NAME = 'user_sessions' "
+                      "AND COLUMN_NAME = 'session_id' AND NON_UNIQUE = 0"
+                  )
+              ).scalar()
+              assert index_count >= 1, "unique index on user_sessions.session_id is missing"
+
+          print("user_sessions.session_id and its unique index are present")
+          PY
 
       - name: pip-audit
         working-directory: backend
