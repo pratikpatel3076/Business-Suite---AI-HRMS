@@ -86,6 +86,10 @@ def _ensure_module_login_allowed(user: User, module: str | None) -> None:
 
 REFRESH_COOKIE_NAME = "refresh_token"
 REFRESH_COOKIE_PATH = f"{settings.API_V1_STR}/auth"
+# A rotated refresh token is often replayed once by a client whose cookie jar
+# lagged behind the rotation response. Tolerate that brief race, but treat any
+# later reuse as theft and revoke every active session for the user.
+REFRESH_REPLAY_GRACE_SECONDS = 30
 
 # Cross-site requests cannot set a custom header without a successful CORS
 # preflight. Requiring it on cookie-auth endpoints complements the Origin /
@@ -136,6 +140,18 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         secure=settings.ENVIRONMENT.lower() != "development",
         samesite="strict",
     )
+
+
+def _within_refresh_replay_grace(rotated_at: datetime | None) -> bool:
+    """Return True when a rotated token was replayed within the grace window."""
+    if rotated_at is None:
+        return False
+    # SQLite drops tzinfo for DateTime(timezone=True); those values are stored
+    # as UTC by this application, so treat them as UTC rather than local time.
+    if rotated_at.tzinfo is None:
+        rotated_at = rotated_at.replace(tzinfo=timezone.utc)
+    age = (datetime.now(timezone.utc) - rotated_at).total_seconds()
+    return age < REFRESH_REPLAY_GRACE_SECONDS
 
 
 def _create_session(db: Session, user: User, refresh_token: str, request: Request | None = None) -> str:
@@ -342,7 +358,9 @@ def refresh_token(
             UserSession.session_token_hash == token_hash,
             UserSession.status == "Rotated",
         ).first()
-        if rotated:
+        if rotated and not _within_refresh_replay_grace(rotated.last_seen_at):
+            # Outside the grace window, reuse is a theft signal: revoke every
+            # active session for that user, not just the stale one.
             db.query(UserSession).filter(
                 UserSession.user_id == user_id,
                 UserSession.status == "Active",

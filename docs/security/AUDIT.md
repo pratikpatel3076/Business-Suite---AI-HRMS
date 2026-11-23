@@ -160,7 +160,7 @@ Statuses below describe the current pass only. Each item is committed separately
 | --- | --- | --- | --- |
 | 1 | Upload prefix inventory and authorization | Fixed (targeted tests pass) | See below. |
 | 2 | Derived asset-URL signing key | Fixed (targeted tests pass) | See below. |
-| 3 | 30-second refresh replay grace window | Pending | — |
+| 3 | 30-second refresh replay grace window | Fixed (targeted tests pass) | See below. |
 | 4 | Empty-database Alembic baseline review | Pending | — |
 | 5 | Final full suite and branch report | Pending | — |
 
@@ -175,3 +175,7 @@ Payslips, Form 16, and tax proofs now resolve the owning employee from the persi
 ### Second-pass item 2 — derived asset-URL signing key
 
 `app/core/asset_urls.py` now derives its HMAC key with `HMAC-SHA256(SECRET_KEY, b"asset-url")`. The derived key is used for both signing and verification, giving domain separation from JWT signing and any other HMAC use of `SECRET_KEY`; no new environment variable is needed, so the existing production validation of `SECRET_KEY` still applies. Added `asset_url_signing_key()` and tests asserting the exact derived value, that a signature made with the raw `SECRET_KEY` is rejected, and that the derived signature verifies. All existing expiry, path-binding, and tamper tests still pass. Targeted run with `tests/test_upload_authorization.py` and `tests/test_secure_uploads.py`: **42 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item2_targeted_tests.log`).
+
+### Second-pass item 3 — 30-second refresh replay grace window
+
+`app/api/v1/auth.py` now defines `REFRESH_REPLAY_GRACE_SECONDS = 30` and `_within_refresh_replay_grace()`, which measures the age of a rotated session's `last_seen_at` (treating SQLite-naive values as UTC). A replay of a just-rotated token still returns 401, but within the 30-second window it no longer revokes the user's other active sessions — this tolerates a client whose cookie jar lagged one rotation. A replay after the window is still treated as theft and revokes every active session. Updated `test_rotated_refresh_replay_revokes_every_user_session` to age the rotated session past the window, and added `test_rotated_refresh_replay_within_grace_keeps_sessions`, which proves an immediate replay returns 401, leaves the active-session count unchanged, and keeps an independent session usable. Targeted run with `tests/test_auth.py`: **23 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item3_targeted_tests.log`).

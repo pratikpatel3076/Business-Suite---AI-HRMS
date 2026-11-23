@@ -1,5 +1,7 @@
 """Task 8: token storage, type enforcement and session revocation."""
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi import Response, status
 from jose import jwt
 
@@ -8,8 +10,10 @@ from app.api.v1.auth import (
     CSRF_HEADER_VALUE,
     REFRESH_COOKIE_NAME,
     REFRESH_COOKIE_PATH,
+    REFRESH_REPLAY_GRACE_SECONDS,
     _create_mfa_token,
     _decode_mfa_token,
+    _hash_refresh_token,
     _set_refresh_cookie,
 )
 from app.core.config import settings
@@ -224,6 +228,21 @@ def test_rotated_refresh_replay_revokes_every_user_session(client, db):
     second = second_login.cookies.get(REFRESH_COOKIE_NAME)
     assert second and second != original
 
+    # Age the rotated session beyond the grace window so a replay is treated
+    # as theft and revokes every active session.
+    user = db.query(User).filter(User.email == "admin@aihrms.com").first()
+    assert user is not None
+    rotated = db.query(UserSession).filter(
+        UserSession.user_id == user.id,
+        UserSession.session_token_hash == _hash_refresh_token(original),
+        UserSession.status == "Rotated",
+    ).first()
+    assert rotated is not None
+    rotated.last_seen_at = datetime.now(timezone.utc) - timedelta(
+        seconds=REFRESH_REPLAY_GRACE_SECONDS + 5
+    )
+    db.commit()
+
     client.cookies.clear()
     client.cookies.set(REFRESH_COOKIE_NAME, original, path=REFRESH_COOKIE_PATH)
     replay = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
@@ -242,3 +261,53 @@ def test_rotated_refresh_replay_revokes_every_user_session(client, db):
         UserSession.status == "Active",
     ).count()
     assert active == 0
+
+
+def test_rotated_refresh_replay_within_grace_keeps_sessions(client, db):
+    login = _seeded_admin_login(client, db)
+    original = login.cookies.get(REFRESH_COOKIE_NAME)
+    assert original
+
+    first = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
+    assert first.status_code == status.HTTP_200_OK
+
+    # A second, independent active session for the same user.
+    second_login = _login(client)
+    assert second_login.status_code == status.HTTP_200_OK
+    second = second_login.cookies.get(REFRESH_COOKIE_NAME)
+    assert second and second != original
+
+    user = db.query(User).filter(User.email == "admin@aihrms.com").first()
+    assert user is not None
+    rotated = db.query(UserSession).filter(
+        UserSession.user_id == user.id,
+        UserSession.session_token_hash == _hash_refresh_token(original),
+        UserSession.status == "Rotated",
+    ).first()
+    assert rotated is not None
+    assert rotated.last_seen_at is not None
+
+    active_before = db.query(UserSession).filter(
+        UserSession.user_id == user.id,
+        UserSession.status == "Active",
+    ).count()
+    assert active_before >= 1
+
+    # An immediate replay is still rejected...
+    client.cookies.clear()
+    client.cookies.set(REFRESH_COOKIE_NAME, original, path=REFRESH_COOKIE_PATH)
+    replay = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
+    assert replay.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # ...but inside the grace window it must not revoke any active session.
+    active_after = db.query(UserSession).filter(
+        UserSession.user_id == user.id,
+        UserSession.status == "Active",
+    ).count()
+    assert active_after == active_before
+
+    # The unrelated session remains usable.
+    client.cookies.clear()
+    client.cookies.set(REFRESH_COOKIE_NAME, second, path=REFRESH_COOKIE_PATH)
+    second_refresh = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
+    assert second_refresh.status_code == status.HTTP_200_OK
