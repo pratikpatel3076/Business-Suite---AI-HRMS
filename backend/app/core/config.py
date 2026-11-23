@@ -194,3 +194,8 @@ settings = Settings()
 def demo_seeding_enabled() -> bool:
     """Demo data is strictly opt-in and never seeded in production."""
     return settings.ENVIRONMENT.lower() != "production" and settings.SEED_DEMO_DATA
+
+
+def local_schema_management_enabled() -> bool:
+    """Only development/test may create or patch schema outside Alembic."""
+    return settings.ENVIRONMENT.lower() in {"development", "test"}

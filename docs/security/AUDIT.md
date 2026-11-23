@@ -35,7 +35,7 @@ Statuses below describe the current follow-up pass only. Each item is committed 
 | --- | --- | --- | --- |
 | 1 | Upload URL prefix authorization | Fixed (targeted tests pass) | See below. |
 | 2 | Signed single-path asset URLs; remove `?token=`; 15-minute access tokens | Fixed (targeted tests pass; frontend build passes) | See below. |
-| 3 | Alembic-only schema changes in production | Pending | — |
+| 3 | Alembic-only schema changes in production | Fixed (targeted tests pass) | See below. |
 | 4 | Environment allowlist and cookie/logging safety | Pending | — |
 | 5 | Rate limiting per IP + email, Redis storage, proxy docs | Pending | — |
 | 6 | Refresh/logout origin checks and rotated-token reuse revocation | Pending | — |
@@ -50,6 +50,10 @@ Stored URLs are now checked against an explicit prefix allowlist in `app/core/up
 ### Item 2 — signed asset URLs
 
 `get_current_user_for_asset` no longer accepts a `?token=` access token. Authenticated callers use `POST /api/v1/uploads/sign`, which re-runs the item 1 authorization and returns a 60-second HMAC-SHA256 URL bound to one exact stored path (`app/core/asset_urls.py`). The download route accepts either a Bearer token with authorization or a valid `expires`/`sig` pair; expired, tampered, or path-mismatched signatures return 403. `ACCESS_TOKEN_EXPIRE_MINUTES` now defaults to 15. `frontend/src/lib/secureAssetUrl.ts` signs paths through the API and caches them for 55 seconds; existing callers keep the same synchronous hook API and never put tokens in URLs. `npm run build` succeeded. Targeted run: **33 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item2_signed.log`).
+
+### Item 3 — Alembic-only schema in production
+
+`local_schema_management_enabled()` in `app/core/config.py` gates schema work to `ENVIRONMENT in {"development", "test"}`. The startup lifespan now calls `Base.metadata.create_all`, `ensure_crm_schema`, and `ensure_pms_schema` only under that flag; production relies entirely on Alembic. Demo CRM seeding is likewise skipped outside local environments. `tests/test_startup_schema.py` asserts the flag values and that a production lifespan makes no schema calls (development makes them). Targeted run with the secret-configuration suite: **14 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item3_startup.log`).
 
 ## Task 8 — auth surface review (report before fixes)
 
@@ -110,3 +114,4 @@ These are explicit, open gaps. None is claimed as fixed or validated:
 - **Prior full suite** (before the follow-up hardening pass): `cd backend && pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25` with `INSTALLED_APPS=hrms,crm,project_management` — **200 passed, 0 failed, 307 warnings in 194.87s (0:03:14)**. Log: `C:\Users\prati\AppData\Local\Temp\opencode\full_suite_final.log`. The shell wrapper reports exit code 1 because PowerShell's `*>` stream redirect writes native stderr as error records; the pytest log itself records 200 passed and no failures.
 - Follow-up item 1: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_upload_authorization.py tests/test_secure_uploads.py` — **25 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item1_uploads.log`).
 - Follow-up item 2: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_signed_asset_urls.py tests/test_upload_authorization.py tests/test_secure_uploads.py` — **33 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item2_signed.log`); `npm run build` succeeded (`C:\Users\prati\AppData\Local\Temp\opencode\item2_frontend_build.log`).
+- Follow-up item 3: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_startup_schema.py tests/test_secret_configuration.py` — **14 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item3_startup.log`).

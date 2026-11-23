@@ -8,7 +8,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
-from app.core.config import settings
+from app.core.config import local_schema_management_enabled, settings
 from app.core.rate_limit import limiter
 from app.api.v1.router import api_router
 from app.core.middleware.audit import AuditLogMiddleware
@@ -28,7 +28,10 @@ async def lifespan(app: FastAPI):
     from app.db.session import SessionLocal
     from app.db.init_common_db import init_common_db
 
-    Base.metadata.create_all(bind=engine)
+    # Production schema is owned exclusively by Alembic. `create_all` and the
+    # module `ensure_*_schema` helpers must never run there.
+    if local_schema_management_enabled():
+        Base.metadata.create_all(bind=engine)
 
     # Create upload directories
     for subdir in ["employee_docs", "photos", "resumes", "documents", "certificates", "certificate_imports"]:
@@ -43,14 +46,15 @@ async def lifespan(app: FastAPI):
         else:
             init_common_db(db)
         if is_app_enabled("crm"):
-            from app.apps.crm.schema import ensure_crm_schema
+            if local_schema_management_enabled():
+                from app.apps.crm.schema import ensure_crm_schema
 
-            ensure_crm_schema(db)
-            if not is_app_enabled("hrms"):
+                ensure_crm_schema(db)
+            if not is_app_enabled("hrms") and local_schema_management_enabled():
                 from app.apps.crm.seed import seed_crm_demo_data
 
                 seed_crm_demo_data(db, organization_id=1)
-        if is_app_enabled("project_management"):
+        if is_app_enabled("project_management") and local_schema_management_enabled():
             from app.apps.project_management.schema import ensure_pms_schema
 
             ensure_pms_schema(db)
