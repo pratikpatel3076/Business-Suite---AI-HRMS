@@ -73,14 +73,20 @@ docker run \
   ai-hrms-backend
 ```
 
-## Session cookies
+## Session cookies and CSRF
 
-The refresh token is set by the backend as an `HttpOnly`, `Secure`, `SameSite=Strict` cookie scoped to `/api/v1/auth`. `SameSite=Strict` cookies are not sent across sites, so a split-origin setup (`hrms.yourdomain.com` frontend calling `api.yourdomain.com`) will break silent refresh. Use one of:
+The refresh token is set by the backend as an `HttpOnly`, `Secure`, `SameSite=Strict` cookie scoped to `/api/v1/auth`. It is **cookie-only**: the old `refresh_token` request-body fallback has been removed.
 
-1. **Recommended:** proxy `/api/*` through the frontend origin so the browser sees a single site (see the same-origin configuration below).
-2. Change the backend cookie to `SameSite=None; Secure` and set `allow_credentials=True` with explicit CORS origins. This weakens CSRF protection and must be a deliberate decision.
+`POST /api/v1/auth/refresh` and `POST /api/v1/auth/logout` additionally require both of these on every call:
 
-In production, enable CORS credentials only for the exact frontend origin and keep the method/header allowlists explicit.
+- an `Origin` header (or `Referer` as a fallback) whose origin exactly matches an entry in `BACKEND_CORS_ORIGINS`; and
+- an `X-CSRF-Token: hrms-app` custom header.
+
+The frontend sends that header on every API request. Because a custom header forces a CORS preflight cross-site, an attacker page cannot satisfy the check unless the origin is explicitly allowed; a missing, unlisted, or wildcard origin returns `403`. `X-CSRF-Token` must stay in the backend CORS `allow_headers` list.
+
+**Recommended deployment:** proxy `/api/*` through the frontend origin so the browser sees one site (see the same-origin configuration below). `SameSite=Strict` then works with silent refresh.
+
+**Cross-site deployment:** if you deliberately need the cookie on a different site and change it to `SameSite=None; Secure`, do so **only with the Origin/Referer allowlist and CSRF header above still enabled**. Never combine `SameSite=None` with `BACKEND_CORS_ORIGINS=["*"]`, and keep `Secure`, `HttpOnly`, explicit origins, and `allow_credentials=True`. The cookie becomes cross-site, so the custom header and origin check are the controls that prevent CSRF, not the `SameSite` attribute.
 
 ## Background Workers
 

@@ -176,7 +176,7 @@ def test_cors_uses_explicit_methods_and_headers(client):
         headers={
             "Origin": "http://localhost:5173",
             "Access-Control-Request-Method": "POST",
-            "Access-Control-Request-Headers": "authorization,content-type",
+            "Access-Control-Request-Headers": "authorization,content-type,x-csrf-token",
         },
     )
     assert response.status_code == status.HTTP_200_OK
@@ -186,6 +186,7 @@ def test_cors_uses_explicit_methods_and_headers(client):
     allow_headers = response.headers["access-control-allow-headers"]
     assert "*" not in allow_headers
     assert "authorization" in allow_headers.lower()
+    assert "x-csrf-token" in allow_headers.lower()
 
 
 def test_cors_rejects_unlisted_method(client):

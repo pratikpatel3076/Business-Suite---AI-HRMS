@@ -20,6 +20,9 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Custom header required by /auth/refresh and /auth/logout. It forces a
+  // CORS preflight cross-site and cannot be set by a simple form submission.
+  config.headers["X-CSRF-Token"] = "hrms-app";
   return config;
 });
 

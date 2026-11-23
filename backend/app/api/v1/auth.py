@@ -1,5 +1,6 @@
 import hashlib
 from datetime import datetime, timezone, timedelta
+from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
@@ -28,7 +29,7 @@ from app.core.mfa import (
 from app.models.user import User
 from app.models.user import Role, Permission, UserSession, MFAMethod, PasswordPolicy, LoginAttempt
 from app.schemas.auth import (
-    LoginRequest, TokenResponse, RefreshTokenRequest,
+    LoginRequest, TokenResponse,
     ChangePasswordRequest, UserCreate, UserSchema,
     RoleCreate, RoleUpdate, RoleSchema, PermissionSchema,
     UserSessionCreate, UserSessionSchema, MFAMethodCreate, MFAMethodSchema,
@@ -85,6 +86,38 @@ def _ensure_module_login_allowed(user: User, module: str | None) -> None:
 
 REFRESH_COOKIE_NAME = "refresh_token"
 REFRESH_COOKIE_PATH = f"{settings.API_V1_STR}/auth"
+
+# Cross-site requests cannot set a custom header without a successful CORS
+# preflight. Requiring it on cookie-auth endpoints complements the Origin /
+# Referer allowlist and keeps SameSite=Strict as the default cookie policy.
+CSRF_HEADER_NAME = "X-CSRF-Token"
+CSRF_HEADER_VALUE = "hrms-app"
+
+
+def _allowed_cookie_origins() -> set[str]:
+    return {str(origin).strip().rstrip("/").lower() for origin in settings.BACKEND_CORS_ORIGINS}
+
+
+def _request_origin(request: Request) -> str | None:
+    origin = request.headers.get("origin")
+    if not origin:
+        referer = request.headers.get("referer")
+        if referer:
+            parsed = urlparse(referer)
+            if parsed.scheme and parsed.netloc:
+                origin = f"{parsed.scheme}://{parsed.netloc}"
+    return origin.strip().rstrip("/").lower() if origin else None
+
+
+def _verify_cookie_auth_request(request: Request) -> None:
+    allowed = _allowed_cookie_origins()
+    if "*" in allowed:
+        raise HTTPException(status_code=403, detail="Wildcard origins are not allowed for cookie auth")
+    origin = _request_origin(request)
+    if not origin or origin not in allowed:
+        raise HTTPException(status_code=403, detail="Origin not allowed")
+    if request.headers.get(CSRF_HEADER_NAME) != CSRF_HEADER_VALUE:
+        raise HTTPException(status_code=403, detail="Missing or invalid CSRF header")
 
 
 def _hash_refresh_token(token: str) -> str:
@@ -277,24 +310,47 @@ def verify_mfa_login(data: MFAVerifyRequest, request: Request, response: Respons
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit(REFRESH_RATE_LIMIT)
 def refresh_token(
-    data: RefreshTokenRequest,
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
 ):
-    token = data.refresh_token or request.cookies.get(REFRESH_COOKIE_NAME)
+    _verify_cookie_auth_request(request)
+
+    # The refresh token is cookie-only; a request-body fallback would re-open
+    # the CSRF surface this check is designed to close.
+    token = request.cookies.get(REFRESH_COOKIE_NAME)
     payload = verify_refresh_token(token) if token else None
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
+    try:
+        user_id = int(payload["sub"])
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    token_hash = _hash_refresh_token(token)
     session = db.query(UserSession).filter(
-        UserSession.session_token_hash == _hash_refresh_token(token),
+        UserSession.user_id == user_id,
+        UserSession.session_token_hash == token_hash,
         UserSession.status == "Active",
     ).first()
     if not session:
+        # A replayed rotated token is a strong signal of token theft: revoke
+        # every active session for that user, not just the stale one.
+        rotated = db.query(UserSession).filter(
+            UserSession.user_id == user_id,
+            UserSession.session_token_hash == token_hash,
+            UserSession.status == "Rotated",
+        ).first()
+        if rotated:
+            db.query(UserSession).filter(
+                UserSession.user_id == user_id,
+                UserSession.status == "Active",
+            ).update({UserSession.status: "Revoked"}, synchronize_session=False)
+            db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh session is no longer active")
 
-    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
@@ -341,6 +397,8 @@ def logout(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _verify_cookie_auth_request(request)
+
     auth = request.headers.get("Authorization", "")
     payload = verify_access_token(auth[7:]) if auth.startswith("Bearer ") else None
     session_id = payload.get("sid") if payload else None

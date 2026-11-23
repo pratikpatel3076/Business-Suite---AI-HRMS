@@ -4,6 +4,8 @@ from fastapi import Response, status
 from jose import jwt
 
 from app.api.v1.auth import (
+    CSRF_HEADER_NAME,
+    CSRF_HEADER_VALUE,
     REFRESH_COOKIE_NAME,
     REFRESH_COOKIE_PATH,
     _create_mfa_token,
@@ -18,7 +20,11 @@ from app.core.security import (
     verify_refresh_token,
 )
 from app.db.init_db import init_db
-from app.models.user import User
+from app.models.user import User, UserSession
+
+
+def _cookie_auth_headers() -> dict:
+    return {"Origin": settings.BACKEND_CORS_ORIGINS[0], CSRF_HEADER_NAME: CSRF_HEADER_VALUE}
 
 
 def _set_cookie_header(response) -> str:
@@ -95,14 +101,14 @@ def test_refresh_token_rotation_revokes_previous_token(client, db):
     original_refresh = login.cookies.get(REFRESH_COOKIE_NAME)
     assert original_refresh
 
-    first = client.post("/api/v1/auth/refresh", json={})
+    first = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
     assert first.status_code == status.HTTP_200_OK
     assert first.cookies.get(REFRESH_COOKIE_NAME) != original_refresh
 
     # Clear the jar so the replay cannot accidentally send the rotated cookie.
     client.cookies.clear()
     client.cookies.set(REFRESH_COOKIE_NAME, original_refresh, path=REFRESH_COOKIE_PATH)
-    replay = client.post("/api/v1/auth/refresh", json={})
+    replay = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
     assert replay.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -114,12 +120,12 @@ def test_logout_revokes_refresh_session(client, db):
 
     logout = client.post(
         "/api/v1/auth/logout",
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers={"Authorization": f"Bearer {access_token}", **_cookie_auth_headers()},
     )
     assert logout.status_code == status.HTTP_200_OK
 
     client.cookies.set(REFRESH_COOKIE_NAME, refresh_token, path=REFRESH_COOKIE_PATH)
-    refresh = client.post("/api/v1/auth/refresh", json={})
+    refresh = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
     assert refresh.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -127,5 +133,112 @@ def test_refresh_rejects_token_not_recorded_in_sessions(client, db):
     init_db(db)
     forged = create_refresh_token("999")
     client.cookies.set(REFRESH_COOKIE_NAME, forged, path=REFRESH_COOKIE_PATH)
-    response = client.post("/api/v1/auth/refresh", json={})
+    response = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_refresh_requires_allowed_origin_and_csrf_header(client, db):
+    login = _seeded_admin_login(client, db)
+    token = login.cookies.get(REFRESH_COOKIE_NAME)
+    assert token
+    allowed = settings.BACKEND_CORS_ORIGINS[0]
+
+    def _attempt(headers: dict):
+        client.cookies.clear()
+        client.cookies.set(REFRESH_COOKIE_NAME, token, path=REFRESH_COOKIE_PATH)
+        return client.post("/api/v1/auth/refresh", json={}, headers=headers)
+
+    assert _attempt({CSRF_HEADER_NAME: CSRF_HEADER_VALUE}).status_code == 403
+    assert _attempt({"Origin": "https://evil.example", CSRF_HEADER_NAME: CSRF_HEADER_VALUE}).status_code == 403
+    assert _attempt({"Referer": "https://evil.example/page", CSRF_HEADER_NAME: CSRF_HEADER_VALUE}).status_code == 403
+    assert _attempt({"Origin": allowed}).status_code == 403
+
+
+def test_refresh_accepts_allowed_referer_with_csrf_header(client, db):
+    login = _seeded_admin_login(client, db)
+    token = login.cookies.get(REFRESH_COOKIE_NAME)
+    assert token
+    allowed = settings.BACKEND_CORS_ORIGINS[0]
+
+    client.cookies.clear()
+    client.cookies.set(REFRESH_COOKIE_NAME, token, path=REFRESH_COOKIE_PATH)
+    response = client.post(
+        "/api/v1/auth/refresh",
+        json={},
+        headers={"Referer": f"{allowed}/dashboard", CSRF_HEADER_NAME: CSRF_HEADER_VALUE},
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+
+def test_refresh_ignores_token_in_request_body(client, db):
+    login = _seeded_admin_login(client, db)
+    token = login.cookies.get(REFRESH_COOKIE_NAME)
+    assert token
+
+    client.cookies.clear()
+    response = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": token},
+        headers=_cookie_auth_headers(),
+    )
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_logout_requires_allowed_origin_and_csrf_header(client, db):
+    login = _seeded_admin_login(client, db)
+    access_token = login.json()["access_token"]
+    allowed = settings.BACKEND_CORS_ORIGINS[0]
+
+    rejected = client.post(
+        "/api/v1/auth/logout",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Origin": "https://evil.example",
+            CSRF_HEADER_NAME: CSRF_HEADER_VALUE,
+        },
+    )
+    assert rejected.status_code == 403
+
+    missing_header = client.post(
+        "/api/v1/auth/logout",
+        headers={"Authorization": f"Bearer {access_token}", "Origin": allowed},
+    )
+    assert missing_header.status_code == 403
+
+    # The rejected attempts did not revoke the session.
+    refresh = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
+    assert refresh.status_code == status.HTTP_200_OK
+
+
+def test_rotated_refresh_replay_revokes_every_user_session(client, db):
+    login = _seeded_admin_login(client, db)
+    original = login.cookies.get(REFRESH_COOKIE_NAME)
+    assert original
+
+    first = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
+    assert first.status_code == status.HTTP_200_OK
+
+    # A second, independent active session for the same user.
+    second_login = _login(client)
+    assert second_login.status_code == status.HTTP_200_OK
+    second = second_login.cookies.get(REFRESH_COOKIE_NAME)
+    assert second and second != original
+
+    client.cookies.clear()
+    client.cookies.set(REFRESH_COOKIE_NAME, original, path=REFRESH_COOKIE_PATH)
+    replay = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
+    assert replay.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # The replay also revoked the unrelated active session.
+    client.cookies.clear()
+    client.cookies.set(REFRESH_COOKIE_NAME, second, path=REFRESH_COOKIE_PATH)
+    second_refresh = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
+    assert second_refresh.status_code == status.HTTP_401_UNAUTHORIZED
+
+    user = db.query(User).filter(User.email == "admin@aihrms.com").first()
+    assert user is not None
+    active = db.query(UserSession).filter(
+        UserSession.user_id == user.id,
+        UserSession.status == "Active",
+    ).count()
+    assert active == 0
