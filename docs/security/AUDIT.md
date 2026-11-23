@@ -162,7 +162,7 @@ Statuses below describe the current pass only. Each item is committed separately
 | 2 | Derived asset-URL signing key | Fixed (targeted tests pass) | See below. |
 | 3 | 30-second refresh replay grace window | Fixed (targeted tests pass) | See below. |
 | 4 | Empty-database Alembic baseline review | Open (empty-DB upgrade fails; report-only) | See below. |
-| 5 | Final full suite and branch report | Pending | — |
+| 5 | Final full suite and branch report | Fixed (full suite passed) | See below. |
 
 ### Second-pass item 1 — upload prefix inventory and authorization
 
@@ -187,3 +187,41 @@ Attempted `alembic upgrade head` against an empty database. Docker was unavailab
 Root cause: the baseline revision `backend/alembic/versions/20260430_001_initial_hrms_schema.py` implements `upgrade()` with `Base.metadata.create_all(bind=bind)` against the live `app.db.base.Base` metadata rather than a frozen schema snapshot. On a fresh database this creates the full current schema, so the next revision, `20260430_002_employee_optional_profile.py`, fails when it re-adds `interests` (along with `research_work`, `family_information`, and `health_information`). The same pattern affects many later `op.add_column` migrations (attendance computation, employee directory fields, CRM activity/email depth, notification channels, MFA enforcement, SSO providers, and PMS objects), so the chain break is systemic rather than a single column.
 
 This item is report-only: no migration, Alembic file, or CI job was edited, and the failing check was not suppressed or hidden. The empty-database failure remains open. A clean install needs a frozen initial baseline (or an idempotent chain) before it can be trusted; this should be addressed in a dedicated change with a real MySQL empty-DB verification.
+
+### Second-pass item 5 — final full suite and branch report
+
+Ran the full backend suite once on the final tree with `INSTALLED_APPS=hrms,crm,project_management ENVIRONMENT=test python -m pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25`: **255 passed, 0 failed, 307 warnings in 212.76s (0:03:32)**. Log: `C:\Users\prati\AppData\Local\Temp\opencode\full_suite_hardening_pass2.log`. Both new replay-grace tests appear in the slowest-25 list and passed.
+
+`git log --oneline origin/main..HEAD` was captured before this item's commit and listed 29 commits: the first four of this pass (one commit per item), plus the 25 earlier-pass commits recorded above. This item's AUDIT commit is added on top of that list. Nothing was merged or pushed.
+
+```text
+9311528 docs(security): report empty-database Alembic baseline defect
+27da043 fix(security): add 30-second refresh replay grace window
+1b0f7b4 fix(security): derive asset URL signing key
+68308ad fix(security): complete upload prefix authorization coverage
+8934bf7 docs(security): record final full-suite result
+531930a docs: warn that deploy invalidates existing sessions
+8e82d7e ci: add CI, Docker stack, lint config, and security policy
+4256128 fix(auth): require Origin and CSRF header for cookie auth
+09ff76a fix(auth): enforce Redis-backed rate limits with proxy-safe IP keys
+f55ccc0 fix(config): restrict environments and harden cookie/logging defaults
+344866a fix(startup): keep production schema under Alembic control
+dbfdbb9 fix(assets): issue signed single-path URLs instead of query tokens
+a5a9c6c fix(uploads): authorize stored URLs by prefix and deny unknown paths
+c5a9a95 docs(security): record final full-suite result in audit
+18eb4d1 test(routes): add generator sanity checks and refactor for import
+0bc7134 perf(tests): skip middleware audit writes in test environment
+1d28066 test(crm): enable all apps by default and verify tenant isolation
+2baf827 docs(security): rewrite audit with honest verification statuses
+bd2da92 fix(backend): support nested FastAPI routers in route checks
+952a4df fix(backend): repair suite regressions from security hardening
+3ee5fbc build(deps): upgrade Python and frontend dependencies
+a606ffa docs(security): add route access-control matrix
+d07e9cb fix(auth): harden token storage, JWT claims, and refresh rotation
+0d91e9d fix(cors): harden allowed methods and headers
+563cc80 feat(auth): rate-limit authentication endpoints
+3b3cae4 fix(webhooks): verify HMAC signatures for inbound webhooks
+e078a89 fix(secrets): require explicit production keys and add rotation
+22fa128 fix(uploads): require authentication for uploaded file downloads
+6004e37 fix(seed): make demo data opt-in and block production seeding
+```
