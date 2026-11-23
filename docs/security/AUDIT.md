@@ -151,3 +151,23 @@ These are explicit, open gaps. None is claimed as fixed or validated:
 - Follow-up item 7 local config validation: `docker compose config --quiet` passed; `yaml.safe_load` parsed `.github/workflows/ci.yml` and `docker-compose.yml`; `ruff check .` passed; `pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-1325 --ignore-vuln PYSEC-2026-4298` reported `No known vulnerabilities found, 3 ignored`; `npm audit --audit-level=moderate` reported `0 vulnerabilities`.
 - Follow-up item 8: `docs/RELEASE_NOTES.md` added with the session-invalidation notice.
 - Follow-up item 9 (final, run once): `INSTALLED_APPS=hrms,crm,project_management ENVIRONMENT=test pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25` — **245 passed, 0 failed, 307 warnings in 207.29s (0:03:27)**. Log: `C:\Users\prati\AppData\Local\Temp\opencode\full_suite_hardening.log`.
+
+## Second hardening pass
+
+Statuses below describe the current pass only. Each item is committed separately; the final full-suite result is recorded in item 5. The earlier pass above remains unchanged.
+
+| # | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| 1 | Upload prefix inventory and authorization | Fixed (targeted tests pass) | See below. |
+| 2 | Derived asset-URL signing key | Pending | — |
+| 3 | 30-second refresh replay grace window | Pending | — |
+| 4 | Empty-database Alembic baseline review | Pending | — |
+| 5 | Final full suite and branch report | Pending | — |
+
+### Second-pass item 1 — upload prefix inventory and authorization
+
+Added `backend/scripts/enumerate_upload_prefixes.py`, which combines an AST scan of `settings.UPLOAD_DIR` joins, `_save_upload` calls, `/uploads/` literals, and directory creation with a canonical inventory verified against source lines. It prints every backend-written prefix (including dynamic employee/run/FY/organisation segments), maps each to the rule in `app/core/upload_auth.py`, and exits non-zero on an unmapped producer. The full printed inventory is in `C:\Users\prati\AppData\Local\Temp\opencode\item1_upload_prefix_inventory.log`; it reports no unmapped prefixes. PMS attachments are explicitly reported as out of scope because they use the independent `PMS_UPLOAD_ROOT` setting.
+
+`PREFIX_RULES` is now the single source of truth for enforcement and mapping. It covers the gaps from this pass: `probation_letters/` (HR/superuser only), `statutory_validations/`, `templates/statutory/`, both `quotations/` and `crm/quotations/`, and every `exports/*` subfolder (`payroll/<run>/`, `payroll/<run>/payments/`, `payroll/statutory_validations/`, `payroll/<run>/bank_advice/`, `statutory/`, and `statutory/<run>/`). Unmapped prefixes remain denied for every user, including admins and HR.
+
+Payslips, Form 16, and tax proofs now resolve the owning employee from the persisted DB URL first (`PayrollRecord.payslip_pdf_url`, `Form16Record` part paths, and `EmployeeTaxProof.file_path` joined through its declaration), then fall back to the employee id in the path/filename. The owner may download their own file in addition to `payroll_view`/HR/superuser. Added tests for own payslip and Form 16 (200), another employee's payslip and Form 16 (403), filename fallback without a DB row, HR access to a probation letter (200), and a made-up prefix (403). Targeted run with `tests/test_signed_asset_urls.py`: **26 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item1_targeted_tests.log`).
