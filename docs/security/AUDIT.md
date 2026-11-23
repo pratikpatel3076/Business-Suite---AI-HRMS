@@ -161,7 +161,7 @@ Statuses below describe the current pass only. Each item is committed separately
 | 1 | Upload prefix inventory and authorization | Fixed (targeted tests pass) | See below. |
 | 2 | Derived asset-URL signing key | Fixed (targeted tests pass) | See below. |
 | 3 | 30-second refresh replay grace window | Fixed (targeted tests pass) | See below. |
-| 4 | Empty-database Alembic baseline review | Pending | — |
+| 4 | Empty-database Alembic baseline review | Open (empty-DB upgrade fails; report-only) | See below. |
 | 5 | Final full suite and branch report | Pending | — |
 
 ### Second-pass item 1 — upload prefix inventory and authorization
@@ -179,3 +179,11 @@ Payslips, Form 16, and tax proofs now resolve the owning employee from the persi
 ### Second-pass item 3 — 30-second refresh replay grace window
 
 `app/api/v1/auth.py` now defines `REFRESH_REPLAY_GRACE_SECONDS = 30` and `_within_refresh_replay_grace()`, which measures the age of a rotated session's `last_seen_at` (treating SQLite-naive values as UTC). A replay of a just-rotated token still returns 401, but within the 30-second window it no longer revokes the user's other active sessions — this tolerates a client whose cookie jar lagged one rotation. A replay after the window is still treated as theft and revokes every active session. Updated `test_rotated_refresh_replay_revokes_every_user_session` to age the rotated session past the window, and added `test_rotated_refresh_replay_within_grace_keeps_sessions`, which proves an immediate replay returns 401, leaves the active-session count unchanged, and keeps an independent session usable. Targeted run with `tests/test_auth.py`: **23 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item3_targeted_tests.log`).
+
+### Second-pass item 4 — empty-database Alembic baseline review
+
+Attempted `alembic upgrade head` against an empty database. Docker was unavailable locally (`failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`), so the MySQL empty-DB run could not be executed in this environment. A local empty SQLite database was used instead; the upgrade failed with `duplicate column name: interests` on `[SQL: ALTER TABLE employees ADD COLUMN interests TEXT]` (log: `C:\Users\prati\AppData\Local\Temp\opencode\alembic_empty_db.log`).
+
+Root cause: the baseline revision `backend/alembic/versions/20260430_001_initial_hrms_schema.py` implements `upgrade()` with `Base.metadata.create_all(bind=bind)` against the live `app.db.base.Base` metadata rather than a frozen schema snapshot. On a fresh database this creates the full current schema, so the next revision, `20260430_002_employee_optional_profile.py`, fails when it re-adds `interests` (along with `research_work`, `family_information`, and `health_information`). The same pattern affects many later `op.add_column` migrations (attendance computation, employee directory fields, CRM activity/email depth, notification channels, MFA enforcement, SSO providers, and PMS objects), so the chain break is systemic rather than a single column.
+
+This item is report-only: no migration, Alembic file, or CI job was edited, and the failing check was not suppressed or hidden. The empty-database failure remains open. A clean install needs a frozen initial baseline (or an idempotent chain) before it can be trusted; this should be addressed in a dedicated change with a real MySQL empty-DB verification.
