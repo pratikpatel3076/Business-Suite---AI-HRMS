@@ -219,13 +219,7 @@ def _combine_pdfs(part_a_url: str | None, part_b_url: str, employee_id: int, fin
     part_a_path = _disk_path(part_a_url)
     if not part_a_path or not os.path.exists(part_a_path):
         return part_b_url
-    try:
-        from pypdf import PdfMerger
-    except ImportError:
-        try:
-            from PyPDF2 import PdfMerger
-        except ImportError:
-            return part_b_url
+    from pypdf import PdfMerger
 
     out_path = os.path.join(_form16_dir(employee_id, financial_year), "form16_combined.pdf")
     merger = PdfMerger()
