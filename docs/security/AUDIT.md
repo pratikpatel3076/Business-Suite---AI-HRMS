@@ -71,7 +71,9 @@ These are explicit, open gaps. None is claimed as fixed or validated:
 - `cd backend && pytest -q tests/test_secret_configuration.py --tb=short` (task 4 targeted) — 7 passed.
 - `INSTALLED_APPS=hrms,crm,project_management pytest -q --timeout=60 --durations=25 tests/test_crm_rest_api.py::test_crm_leads_crud_is_scoped_to_current_organization` — 1 passed in 26.86s (log: `C:\Users\prati\AppData\Local\Temp\opencode\crm_tenant_test.log`).
 - `cd backend && pytest -q tests/test_auth.py tests/test_auth_hardening.py tests/test_auth_limits.py` (final auth group) — 23 passed; 203 pre-existing Pydantic v1-style deprecation warnings, no failures.
-- `INSTALLED_APPS=hrms,crm,project_management python backend/generate_route_matrix.py` — 870 routes, 96 flagged, 0 unreviewed; after `bd2da92` the generator reproduces the committed matrix byte-for-byte.
+- `INSTALLED_APPS=hrms,crm,project_management python backend/generate_route_matrix.py` (run from the repo root) — 870 routes, 96 flagged, 0 unreviewed; output is byte-identical to the committed matrix.
+- `pytest -q --timeout=60 --durations=25 tests/test_route_matrix_generator.py` — 3 passed. Sanity checks cover `/api/v1` prefix preservation, >0 flagged routes, and classification of `/api/v1/auth/login` as public and `GET /api/v1/payroll/runs` as permission-protected.
+- Differential review of committed matrix vs regenerated matrix keyed by `(method, path, auth dependencies)`: 866 unique keys in each, 0 added, 0 removed, 0 dependency changes. No rows changed, so no additional row-level review was required; the earlier 96-flag substantive review has still not been redone.
 - `cd backend && pip-audit` after upgrades — 3 residual advisories (down from 162), all documented as accepted residual risk above.
 - `cd frontend && npm audit` after upgrades — 0 vulnerabilities (down from 24).
 - `cd frontend && npm run build` — succeeded with Vite 8.3.8 and React Router 7.18.6.

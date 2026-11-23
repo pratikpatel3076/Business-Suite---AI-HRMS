@@ -186,63 +186,78 @@ def iter_routes(routes, prefix=""):
             yield from iter_routes(original.routes, current_prefix)
 
 
-rows = []
-for route, path in iter_routes(app.routes):
-    methods = sorted(getattr(route, "methods", None) or [])
-    if not path or not methods:
-        continue
+def build_rows():
+    """Return (method, path, auth, permissions, risk, outcome, tags, summary) rows."""
+    rows = []
+    for route, path in iter_routes(app.routes):
+        methods = sorted(getattr(route, "methods", None) or [])
+        if not path or not methods:
+            continue
 
-    auth_names, permissions, has_auth = dependency_info(route)
-    if path in INTENTIONAL_PUBLIC or not path.startswith(settings.API_V1_STR):
-        auth_label = "public"
-    elif has_auth:
-        auth_label = ", ".join(auth_names) or "custom"
-    else:
-        auth_label = "NONE"
+        auth_names, permissions, has_auth = dependency_info(route)
+        if path in INTENTIONAL_PUBLIC or not path.startswith(settings.API_V1_STR):
+            auth_label = "public"
+        elif has_auth:
+            auth_label = ", ".join(auth_names) or "custom"
+        else:
+            auth_label = "NONE"
 
-    risk = "-" if auth_label == "public" else risk_level(path, auth_names, has_auth)
+        risk = "-" if auth_label == "public" else risk_level(path, auth_names, has_auth)
 
-    tags = ", ".join(getattr(route, "tags", None) or []) or "-"
-    endpoint = getattr(route, "endpoint", None)
-    outcome = review_outcome(endpoint, risk)
-    summary = first_line(
-        getattr(route, "summary", None)
-        or getattr(endpoint, "__doc__", None)
-        or getattr(endpoint, "__name__", None)
-    )
-
-    for method in methods:
-        rows.append(
-            (method, path, auth_label, ", ".join(permissions) or "-", risk, outcome, tags.replace("|", "\\|"), summary)
+        tags = ", ".join(getattr(route, "tags", None) or []) or "-"
+        endpoint = getattr(route, "endpoint", None)
+        outcome = review_outcome(endpoint, risk)
+        summary = first_line(
+            getattr(route, "summary", None)
+            or getattr(endpoint, "__doc__", None)
+            or getattr(endpoint, "__name__", None)
         )
 
-rows.sort(key=lambda row: (row[1], row[0]))
-flagged = [row for row in rows if row[4] != "-"]
-unreviewed = [row for row in flagged if row[5] == "REVIEW"]
-lines = [
-    "# Route matrix",
-    "",
-    "Generated from the FastAPI application with all installable apps enabled "
-    "(`INSTALLED_APPS=hrms,crm,project_management`) using `app.routes`.",
-    "",
-    "| Column | Meaning |",
-    "| --- | --- |",
-    "| Auth dependency | Authentication dependency detected on the route (`NONE` = no auth). |",
-    "| Permission required | Permissions or roles required by the dependency; `superuser` for admin-only routes. |",
-    "| Risk | Flagged when a route with no auth or only `get_current_user` touches payroll, employee PII, documents, or AI cost/usage data. |",
-    "| Review outcome | `handler-scoped` means the endpoint source contains an explicit ownership/permission check; `REVIEW` needs manual confirmation. This is a heuristic, not a proof. |",
-    "",
-    f"{len(flagged)} of {len(rows)} routes are flagged at dependency level; {len(unreviewed)} still need manual review after source inspection.",
-    "",
-    "| Method | Path | Auth dependency | Permission required | Risk | Review outcome | Tags | Summary |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- |",
-]
-lines.extend(
-    f"| {method} | `{path}` | {auth} | {permissions} | {risk} | {outcome} | {tags} | {summary} |"
-    for method, path, auth, permissions, risk, outcome, tags, summary in rows
-)
+        for method in methods:
+            rows.append(
+                (method, path, auth_label, ", ".join(permissions) or "-", risk, outcome, tags.replace("|", "\\|"), summary)
+            )
 
-output = Path(__file__).resolve().parents[1] / "docs" / "security" / "route-matrix.md"
-output.parent.mkdir(parents=True, exist_ok=True)
-output.write_text("\n".join(lines) + "\n", encoding="utf-8")
-print(f"Wrote {len(rows)} routes ({len(flagged)} flagged, {len(unreviewed)} unreviewed) to {output}")
+    rows.sort(key=lambda row: (row[1], row[0]))
+    return rows
+
+
+def render(rows):
+    flagged = [row for row in rows if row[4] != "-"]
+    unreviewed = [row for row in flagged if row[5] == "REVIEW"]
+    lines = [
+        "# Route matrix",
+        "",
+        "Generated from the FastAPI application with all installable apps enabled "
+        "(`INSTALLED_APPS=hrms,crm,project_management`) using `app.routes`.",
+        "",
+        "| Column | Meaning |",
+        "| --- | --- |",
+        "| Auth dependency | Authentication dependency detected on the route (`NONE` = no auth). |",
+        "| Permission required | Permissions or roles required by the dependency; `superuser` for admin-only routes. |",
+        "| Risk | Flagged when a route with no auth or only `get_current_user` touches payroll, employee PII, documents, or AI cost/usage data. |",
+        "| Review outcome | `handler-scoped` means the endpoint source contains an explicit ownership/permission check; `REVIEW` needs manual confirmation. This is a heuristic, not a proof. |",
+        "",
+        f"{len(flagged)} of {len(rows)} routes are flagged at dependency level; {len(unreviewed)} still need manual review after source inspection.",
+        "",
+        "| Method | Path | Auth dependency | Permission required | Risk | Review outcome | Tags | Summary |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    lines.extend(
+        f"| {method} | `{path}` | {auth} | {permissions} | {risk} | {outcome} | {tags} | {summary} |"
+        for method, path, auth, permissions, risk, outcome, tags, summary in rows
+    )
+    return "\n".join(lines) + "\n", len(flagged), len(unreviewed)
+
+
+def main():
+    rows = build_rows()
+    content, flagged, unreviewed = render(rows)
+    output = Path(__file__).resolve().parents[1] / "docs" / "security" / "route-matrix.md"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(content, encoding="utf-8")
+    print(f"Wrote {len(rows)} routes ({flagged} flagged, {unreviewed} unreviewed) to {output}")
+
+
+if __name__ == "__main__":
+    main()
