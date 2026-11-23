@@ -31,6 +31,10 @@ os.environ.setdefault("ENVIRONMENT", "test")
 # suite needs them, so enable them explicitly before settings are imported.
 os.environ.setdefault("SEED_DEMO_DATA", "true")
 os.environ.setdefault("MYSQL_PASSWORD", "")
+# All modules must be installed for tests. Without this, CRM routes are not
+# registered and tenant-isolation tests can 404 instead of exercising access
+# control, silently hiding a failure.
+os.environ.setdefault("INSTALLED_APPS", "hrms,crm,project_management")
 
 from app.main import app
 from app.db.base_class import Base
