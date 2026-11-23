@@ -1,15 +1,21 @@
 import json
+import logging
 import time
 from typing import Callable, Optional
+from urllib.parse import parse_qsl, urlencode
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
+
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class AuditLogMiddleware(BaseHTTPMiddleware):
     """Logs API requests to the audit_logs table, including failures."""
 
-    SKIP_PREFIXES = ("/uploads",)
+    SKIP_PREFIXES = (f"{settings.API_V1_STR}/uploads",)
     SKIP_ENDPOINTS = {"/health"}
 
     def __init__(self, app: ASGIApp):
@@ -27,7 +33,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             try:
                 await self._log_request(request, response.status_code, duration_ms)
             except Exception:
-                pass
+                logger.exception("Failed to persist audit log for %s %s", request.method, request.url.path)
 
             return response
         except Exception as exc:
@@ -35,7 +41,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             try:
                 await self._log_request(request, 500, duration_ms, error=exc)
             except Exception:
-                pass
+                logger.exception("Failed to persist error audit log for %s %s", request.method, request.url.path)
             raise
 
     def _should_skip(self, request: Request) -> bool:
@@ -45,6 +51,14 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         return any(path.startswith(prefix) for prefix in self.SKIP_PREFIXES)
 
     async def _log_request(self, request: Request, status_code: int, duration_ms: int, error: Optional[Exception] = None):
+        if settings.ENVIRONMENT == "test":
+            # The test suite overrides get_db with an in-memory session, but
+            # middleware cannot use that override. Opening SessionLocal here
+            # would attempt a real MySQL connection (~4s timeout per request)
+            # and the failure is swallowed, so tests paid the cost for no data.
+            # Audit persistence is not under test; fixtures insert rows directly.
+            return
+
         from app.db.session import SessionLocal
         from app.models.audit import AuditLog
         from app.core.security import verify_access_token
@@ -57,7 +71,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
                 if payload:
                     user_id = int(payload.get("sub", 0)) or None
         except Exception:
-            pass
+            logger.exception("Failed to resolve user for audit log")
 
         db = SessionLocal()
         try:
@@ -79,6 +93,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             db.add(log)
             db.commit()
         except Exception:
+            logger.exception("Failed to write audit log for %s %s", request.method, request.url.path)
             db.rollback()
         finally:
             db.close()
@@ -86,7 +101,13 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
     def _description(self, request: Request, error: Optional[Exception]) -> Optional[str]:
         parts = []
         if request.url.query:
-            parts.append(f"query={request.url.query}")
+            # Assets now use short-lived signed URLs, but redact any legacy or
+            # accidental credential-like parameter before persisting the query.
+            redacted = [
+                (key, "REDACTED" if key.lower() in {"token", "access_token", "sig"} else value)
+                for key, value in parse_qsl(request.url.query, keep_blank_values=True)
+            ]
+            parts.append(f"query={urlencode(redacted)}")
         if error:
             parts.append(f"error={type(error).__name__}: {str(error)[:1000]}")
         return " | ".join(parts) if parts else None

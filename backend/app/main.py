@@ -4,13 +4,12 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
-from app.core.config import settings
+from app.core.config import local_schema_management_enabled, settings
+from app.core.rate_limit import limiter
 from app.api.v1.router import api_router
 from app.core.middleware.audit import AuditLogMiddleware
 from app.core.middleware.request_id import RequestIDMiddleware
@@ -29,7 +28,10 @@ async def lifespan(app: FastAPI):
     from app.db.session import SessionLocal
     from app.db.init_common_db import init_common_db
 
-    Base.metadata.create_all(bind=engine)
+    # Production schema is owned exclusively by Alembic. `create_all` and the
+    # module `ensure_*_schema` helpers must never run there.
+    if local_schema_management_enabled():
+        Base.metadata.create_all(bind=engine)
 
     # Create upload directories
     for subdir in ["employee_docs", "photos", "resumes", "documents", "certificates", "certificate_imports"]:
@@ -44,14 +46,15 @@ async def lifespan(app: FastAPI):
         else:
             init_common_db(db)
         if is_app_enabled("crm"):
-            from app.apps.crm.schema import ensure_crm_schema
+            if local_schema_management_enabled():
+                from app.apps.crm.schema import ensure_crm_schema
 
-            ensure_crm_schema(db)
-            if not is_app_enabled("hrms"):
+                ensure_crm_schema(db)
+            if not is_app_enabled("hrms") and local_schema_management_enabled():
                 from app.apps.crm.seed import seed_crm_demo_data
 
                 seed_crm_demo_data(db, organization_id=1)
-        if is_app_enabled("project_management"):
+        if is_app_enabled("project_management") and local_schema_management_enabled():
             from app.apps.project_management.schema import ensure_pms_schema
 
             ensure_pms_schema(db)
@@ -67,8 +70,6 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
 
-
-limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -89,8 +90,15 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "X-Request-ID",
+        "X-CSRF-Token",
+        "X-Webhook-Signature",
+        "X-Webhook-Timestamp",
+    ],
 )
 
 # GZip compression
@@ -115,10 +123,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Mount static files for uploaded content
-if os.path.exists(settings.UPLOAD_DIR):
-    app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
-
+# Uploaded files are served only by the authenticated /api/v1/uploads router.
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 

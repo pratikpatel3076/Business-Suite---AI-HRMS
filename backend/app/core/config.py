@@ -3,7 +3,15 @@ from pydantic import AnyHttpUrl, EmailStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
 import secrets
+import sys
 from urllib.parse import quote_plus
+
+
+PLACEHOLDER_SECRETS = {
+    "your-256-bit-secret-key-here-change-in-production",
+    "your-refresh-secret-key-here-change-in-production",
+    "your-encryption-key-here-change-in-production",
+}
 
 
 class Settings(BaseSettings):
@@ -12,16 +20,22 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Business Suite"
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = "production"
     INSTALLED_APPS: Union[List[str], str] = ["hrms"]
 
-    # Security
-    SECRET_KEY: str = secrets.token_urlsafe(48)
+    # Data seeding (development/test only; production must use scripts/create_admin.py)
+    SEED_DEMO_DATA: bool = False
+
+    # Security. These are required in production; development/test get a
+    # per-process ephemeral value so the app can still boot locally.
+    SECRET_KEY: Optional[str] = None
     SECRET_KEY_PREVIOUS: Optional[str] = None
-    REFRESH_SECRET_KEY: str = secrets.token_urlsafe(48)
+    REFRESH_SECRET_KEY: Optional[str] = None
     REFRESH_SECRET_KEY_PREVIOUS: Optional[str] = None
+    ENCRYPTION_KEY: Optional[str] = None
+    ENCRYPTION_KEY_PREVIOUS: Optional[str] = None
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Database
@@ -85,6 +99,7 @@ class Settings(BaseSettings):
     CRM_OUTLOOK_CALENDAR_CLIENT_ID: str = ""
     CRM_OUTLOOK_CALENDAR_CLIENT_SECRET: str = ""
     CRM_CALENDAR_WEBHOOK_SECRET: str = ""
+    CRM_CALENDAR_WEBHOOK_ENABLED: bool = False
     CRM_WEBHOOK_BLOCK_PRIVATE_URLS: bool = True
 
     # File storage
@@ -117,6 +132,17 @@ class Settings(BaseSettings):
                 return [i.strip() for i in v.split(",")]
         return v
 
+    @field_validator("ENVIRONMENT", mode="before")
+    @classmethod
+    def validate_environment(cls, v: Any) -> str:
+        environment = str(v).strip().lower()
+        allowed = {"development", "test", "production"}
+        if environment not in allowed:
+            raise ValueError(f"ENVIRONMENT must be one of {sorted(allowed)}")
+        if environment == "test" and "pytest" not in sys.modules:
+            raise ValueError("ENVIRONMENT=test is only permitted when pytest is loaded")
+        return environment
+
     @field_validator("INSTALLED_APPS", mode="before")
     @classmethod
     def assemble_installed_apps(cls, v: Any) -> List[str]:
@@ -130,13 +156,34 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def validate_production_cors(self):
-        if self.ENVIRONMENT.lower() == "production" and "*" in self.BACKEND_CORS_ORIGINS:
+    def validate_production_security(self):
+        production = self.ENVIRONMENT.lower() == "production"
+        if production and "*" in self.BACKEND_CORS_ORIGINS:
             raise ValueError("BACKEND_CORS_ORIGINS must list explicit origins when ENVIRONMENT=production")
-        return self
 
-    # Rate limiting
-    RATE_LIMIT_PER_MINUTE: int = 60
+        required_secrets = {
+            "SECRET_KEY": self.SECRET_KEY,
+            "REFRESH_SECRET_KEY": self.REFRESH_SECRET_KEY,
+            "ENCRYPTION_KEY": self.ENCRYPTION_KEY,
+        }
+        if production:
+            for name, value in required_secrets.items():
+                if not value:
+                    raise ValueError(f"{name} must be set when ENVIRONMENT=production")
+                if len(value) < 32:
+                    raise ValueError(f"{name} must be at least 32 characters")
+                if value in PLACEHOLDER_SECRETS:
+                    raise ValueError(f"{name} is still set to the .env.example placeholder")
+            if self.SECRET_KEY == self.REFRESH_SECRET_KEY:
+                raise ValueError("SECRET_KEY and REFRESH_SECRET_KEY must be different")
+            if self.ENCRYPTION_KEY in {self.SECRET_KEY, self.REFRESH_SECRET_KEY}:
+                raise ValueError("ENCRYPTION_KEY must be distinct from the JWT signing keys")
+
+        # Non-production environments can boot without explicit secrets.
+        self.SECRET_KEY = self.SECRET_KEY or secrets.token_urlsafe(48)
+        self.REFRESH_SECRET_KEY = self.REFRESH_SECRET_KEY or secrets.token_urlsafe(48)
+        self.ENCRYPTION_KEY = self.ENCRYPTION_KEY or secrets.token_urlsafe(48)
+        return self
 
     @field_validator("DEBUG", mode="before")
     @classmethod
@@ -151,3 +198,13 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def demo_seeding_enabled() -> bool:
+    """Demo data is strictly opt-in and never seeded in production."""
+    return settings.ENVIRONMENT.lower() != "production" and settings.SEED_DEMO_DATA
+
+
+def local_schema_management_enabled() -> bool:
+    """Only development/test may create or patch schema outside Alembic."""
+    return settings.ENVIRONMENT.lower() in {"development", "test"}

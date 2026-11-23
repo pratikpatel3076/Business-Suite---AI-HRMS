@@ -1,5 +1,4 @@
 """Project Management (KaryaFlow) API routes."""
-import base64
 import hashlib
 import hmac
 import json
@@ -15,9 +14,9 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import asc, case, desc, func, or_
 from sqlalchemy.orm import Session
-from cryptography.fernet import Fernet
 
 from app.core.config import settings
+from app.core.encryption import decrypt_secret, encrypt_secret
 from app.core.deps import get_db, get_current_user
 from app.core.security import verify_access_token
 from app.db.session import SessionLocal
@@ -199,21 +198,12 @@ def _model_payload(model) -> dict:
     return {column.key: _json_ready(getattr(model, column.key)) for column in model.__table__.columns}
 
 
-def _pms_fernet() -> Fernet:
-    digest = hashlib.sha256(settings.SECRET_KEY.encode("utf-8")).digest()
-    return Fernet(base64.urlsafe_b64encode(digest))
-
-
 def _encrypt_dev_secret(value: str | None) -> str | None:
-    if not value:
-        return None
-    return _pms_fernet().encrypt(value.encode("utf-8")).decode("utf-8")
+    return encrypt_secret(value)
 
 
 def _decrypt_dev_secret(value: str | None) -> str | None:
-    if not value:
-        return None
-    return _pms_fernet().decrypt(value.encode("utf-8")).decode("utf-8")
+    return decrypt_secret(value)
 
 
 def _user_display_name(user: User | None) -> str | None:

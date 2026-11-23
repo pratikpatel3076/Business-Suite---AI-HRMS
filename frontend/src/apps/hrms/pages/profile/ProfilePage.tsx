@@ -17,7 +17,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authApi, employeeApi } from "@/services/api";
-import { assetUrl, formatDate, formatDateTime } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
+import { useAssetUrl } from "@/lib/secureAssetUrl";
 import { toast } from "@/hooks/use-toast";
 import { useAuthStore } from "@/store/authStore";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -75,6 +76,7 @@ const emptyChangeDraft: ChangeDraft = {
 export default function ProfilePage() {
   usePageTitle("Profile");
   const qc = useQueryClient();
+  const assetUrl = useAssetUrl();
   const user = useAuthStore((state) => state.user);
   const roleKey = getRoleKey(user?.role, user?.is_superuser);
   const canReviewChanges = ["admin", "hr", "manager"].includes(roleKey);

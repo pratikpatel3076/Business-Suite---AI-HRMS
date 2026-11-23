@@ -16,7 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { employeeApi } from "@/services/api";
-import { assetUrl, formatDate, statusColor, getInitials } from "@/lib/utils";
+import { formatDate, statusColor, getInitials } from "@/lib/utils";
+import { useAssetUrl } from "@/lib/secureAssetUrl";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { toast } from "@/hooks/use-toast";
 
@@ -39,6 +40,7 @@ const columnHelper = createColumnHelper<Employee>();
 export default function EmployeesPage() {
   usePageTitle("Employees");
   const qc = useQueryClient();
+  const assetUrl = useAssetUrl();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");

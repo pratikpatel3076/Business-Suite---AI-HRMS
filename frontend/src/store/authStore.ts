@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 export interface AuthUser {
   id: number;
@@ -11,50 +10,33 @@ export interface AuthUser {
 
 interface AuthState {
   accessToken: string | null;
-  refreshToken: string | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
   isHydrated: boolean;
-  setTokens: (accessToken: string, refreshToken: string) => void;
+  setAccessToken: (accessToken: string) => void;
   setUser: (user: AuthUser) => void;
   logout: () => void;
   setHydrated: (isHydrated: boolean) => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
+// No persist middleware: the access token lives in memory only and the
+// refresh token is an HttpOnly cookie managed by the browser. On a page load,
+// bootstrapAuth() in services/api.ts silently exchanges the cookie for a new
+// in-memory access token before the route guard makes a decision.
+export const useAuthStore = create<AuthState>()((set) => ({
+  accessToken: null,
+  user: null,
+  isAuthenticated: false,
+  isHydrated: false,
+
+  setAccessToken: (accessToken) => set({ accessToken, isAuthenticated: true }),
+  setUser: (user) => set({ user }),
+  setHydrated: (isHydrated) => set({ isHydrated }),
+
+  logout: () =>
+    set({
       accessToken: null,
-      refreshToken: null,
       user: null,
       isAuthenticated: false,
-      isHydrated: false,
-
-      setTokens: (accessToken, refreshToken) =>
-        set({ accessToken, refreshToken, isAuthenticated: true }),
-
-      setUser: (user) => set({ user }),
-      setHydrated: (isHydrated) => set({ isHydrated }),
-
-      logout: () =>
-        set({
-          accessToken: null,
-          refreshToken: null,
-          user: null,
-          isAuthenticated: false,
-        }),
-      }),
-    {
-      name: "hrms-auth",
-      onRehydrateStorage: () => (state) => {
-        state?.setHydrated(true);
-      },
-      partialize: (state) => ({
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
-    }
-  )
-);
+    }),
+}));

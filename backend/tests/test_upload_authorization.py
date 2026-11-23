@@ -1,0 +1,278 @@
+"""Per-prefix authorization for stored upload URLs (deny by default)."""
+
+from datetime import date
+
+import pytest
+
+from app.core.config import settings
+from app.core.security import create_access_token
+from app.models.employee import Employee, EmployeeDocument
+from app.models.payroll import PayrollRecord, PayrollRun
+from app.models.statutory_compliance import Form16Record
+from app.models.user import Permission, Role, User
+
+
+@pytest.fixture
+def upload_root(tmp_path, monkeypatch):
+    root = tmp_path / "uploads"
+    for folder in (
+        "employee_docs/1",
+        "employee_docs/2",
+        "certificates/2",
+        "exports/payroll/9",
+        "resumes",
+        "photos",
+        "mystery",
+        "brand-new-folder",
+        "made-up-prefix",
+        "payslips/2026/1",
+        "form16/1/2026-27",
+        "form16/2/2026-27",
+        "probation_letters",
+    ):
+        (root / folder).mkdir(parents=True)
+    (root / "employee_docs" / "1" / "own.pdf").write_bytes(b"own")
+    (root / "employee_docs" / "2" / "other.pdf").write_bytes(b"other")
+    (root / "certificates" / "2" / "cert.pdf").write_bytes(b"cert")
+    (root / "exports" / "payroll" / "9" / "run.csv").write_bytes(b"payroll")
+    (root / "resumes" / "cv.pdf").write_bytes(b"resume")
+    (root / "photos" / "avatar.png").write_bytes(b"photo")
+    (root / "mystery" / "secret.bin").write_bytes(b"secret")
+    (root / "brand-new-folder" / "file.txt").write_bytes(b"new")
+    (root / "made-up-prefix" / "file.txt").write_bytes(b"invented")
+    (root / "payslips" / "2026" / "1" / "payslip_1_2026_1.pdf").write_bytes(b"own payslip")
+    (root / "payslips" / "2026" / "1" / "payslip_2_2026_1.pdf").write_bytes(b"other payslip")
+    (root / "form16" / "1" / "2026-27" / "form16_combined.pdf").write_bytes(b"own form16")
+    (root / "form16" / "2" / "2026-27" / "form16_combined.pdf").write_bytes(b"other form16")
+    (root / "probation_letters" / "probation_2_confirmation.pdf").write_bytes(b"probation")
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(root))
+    return root
+
+
+def _user(db, email, permissions=(), is_superuser=False, employee_id=None):
+    perms = []
+    for name in permissions:
+        perm = db.query(Permission).filter(Permission.name == name).first()
+        if perm is None:
+            perm = Permission(name=name, description=name, module="test")
+            db.add(perm)
+            db.flush()
+        perms.append(perm)
+
+    role = Role(name=f"role_{email}", description="Test role", is_system=False, permissions=perms)
+    db.add(role)
+    db.flush()
+
+    user = User(
+        email=email,
+        hashed_password="unused",
+        is_active=True,
+        is_superuser=is_superuser,
+        role_id=role.id,
+    )
+    db.add(user)
+    db.flush()
+
+    if employee_id is not None:
+        employee = db.query(Employee).filter(Employee.id == employee_id).first()
+        if employee is None:
+            employee = Employee(
+                id=employee_id,
+                employee_id=f"EMP-{employee_id}",
+                first_name="Test",
+                last_name="Employee",
+                date_of_joining=date(2020, 1, 1),
+                user_id=user.id,
+            )
+            db.add(employee)
+        else:
+            employee.user_id = user.id
+
+    db.commit()
+    return user
+
+
+def _headers(user):
+    return {"Authorization": f"Bearer {create_access_token(user.id)}"}
+
+
+def _link_payslip(db, employee_id, relative_path):
+    run = PayrollRun(month=1, year=2026)
+    db.add(run)
+    db.flush()
+    record = PayrollRecord(
+        payroll_run_id=run.id,
+        employee_id=employee_id,
+        payslip_pdf_url=f"/uploads/{relative_path}",
+    )
+    db.add(record)
+    db.commit()
+    return record
+
+
+def _link_form16(db, employee_id, relative_path):
+    record = Form16Record(
+        employee_id=employee_id,
+        financial_year="2026-27",
+        combined_file_path=f"/uploads/{relative_path}",
+    )
+    db.add(record)
+    db.commit()
+    return record
+
+
+def test_employee_cannot_fetch_another_employees_document(client, db, upload_root):
+    other = _user(db, "other@example.com", employee_id=2)
+    db.add(
+        EmployeeDocument(
+            employee_id=other.employee.id,
+            document_type="ID Proof",
+            file_url="/uploads/employee_docs/2/other.pdf",
+        )
+    )
+    db.commit()
+    viewer = _user(db, "viewer@example.com")
+
+    response = client.get("/api/v1/uploads/employee_docs/2/other.pdf", headers=_headers(viewer))
+    assert response.status_code == 403
+
+
+def test_owner_can_fetch_own_document(client, db, upload_root):
+    owner = _user(db, "owner@example.com", employee_id=2)
+    db.add(
+        EmployeeDocument(
+            employee_id=owner.employee.id,
+            document_type="ID Proof",
+            file_url="/uploads/employee_docs/2/other.pdf",
+        )
+    )
+    db.commit()
+
+    response = client.get("/api/v1/uploads/employee_docs/2/other.pdf", headers=_headers(owner))
+    assert response.status_code == 200
+    assert response.content == b"other"
+
+
+def test_hr_can_fetch_another_employees_document(client, db, upload_root):
+    _user(db, "owner2@example.com", employee_id=2)
+    hr = _user(db, "hr@example.com", permissions=("employee_sensitive_view",))
+
+    response = client.get("/api/v1/uploads/employee_docs/2/other.pdf", headers=_headers(hr))
+    assert response.status_code == 200
+    assert response.content == b"other"
+
+
+def test_superuser_can_fetch_documents(client, db, upload_root):
+    admin = _user(db, "admin@example.com", is_superuser=True)
+
+    response = client.get("/api/v1/uploads/employee_docs/2/other.pdf", headers=_headers(admin))
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize("relative_path", ["mystery/secret.bin", "brand-new-folder/file.txt"])
+def test_unmapped_prefix_is_denied_even_for_hr(client, db, upload_root, relative_path):
+    hr = _user(db, "hr2@example.com", permissions=("employee_sensitive_view",))
+
+    response = client.get(f"/api/v1/uploads/{relative_path}", headers=_headers(hr))
+    assert response.status_code == 403
+
+
+def test_made_up_prefix_is_denied(client, db, upload_root):
+    employee = _user(db, "made-up@example.com", employee_id=1)
+
+    response = client.get("/api/v1/uploads/made-up-prefix/file.txt", headers=_headers(employee))
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "relative_path,permissions",
+    [
+        ("exports/payroll/9/run.csv", ("payroll_view",)),
+        ("certificates/2/cert.pdf", ("employee_sensitive_view",)),
+        ("resumes/cv.pdf", ("recruitment_view",)),
+        ("photos/avatar.png", ()),
+    ],
+)
+def test_mapped_prefixes_allow_expected_users(client, db, upload_root, relative_path, permissions):
+    user = _user(db, f"allowed_{relative_path.replace('/', '_')}@example.com", permissions=permissions)
+
+    response = client.get(f"/api/v1/uploads/{relative_path}", headers=_headers(user))
+    assert response.status_code == 200
+
+
+def test_payroll_export_denied_without_payroll_permission(client, db, upload_root):
+    employee = _user(db, "nopayroll@example.com")
+
+    response = client.get("/api/v1/uploads/exports/payroll/9/run.csv", headers=_headers(employee))
+    assert response.status_code == 403
+
+
+def test_employee_can_fetch_own_payslip(client, db, upload_root):
+    owner = _user(db, "payslip-owner@example.com", employee_id=1)
+    _user(db, "payslip-other@example.com", employee_id=2)
+    _link_payslip(db, owner.employee.id, "payslips/2026/1/payslip_1_2026_1.pdf")
+
+    response = client.get(
+        "/api/v1/uploads/payslips/2026/1/payslip_1_2026_1.pdf",
+        headers=_headers(owner),
+    )
+    assert response.status_code == 200
+    assert response.content == b"own payslip"
+
+
+def test_employee_cannot_fetch_another_employees_payslip(client, db, upload_root):
+    viewer = _user(db, "payslip-viewer@example.com", employee_id=1)
+    other = _user(db, "payslip-other2@example.com", employee_id=2)
+    _link_payslip(db, other.employee.id, "payslips/2026/1/payslip_2_2026_1.pdf")
+
+    response = client.get(
+        "/api/v1/uploads/payslips/2026/1/payslip_2_2026_1.pdf",
+        headers=_headers(viewer),
+    )
+    assert response.status_code == 403
+
+
+def test_employee_can_fetch_own_form16(client, db, upload_root):
+    owner = _user(db, "form16-owner@example.com", employee_id=1)
+    _user(db, "form16-other@example.com", employee_id=2)
+    _link_form16(db, owner.employee.id, "form16/1/2026-27/form16_combined.pdf")
+
+    response = client.get(
+        "/api/v1/uploads/form16/1/2026-27/form16_combined.pdf",
+        headers=_headers(owner),
+    )
+    assert response.status_code == 200
+    assert response.content == b"own form16"
+
+
+def test_employee_cannot_fetch_another_employees_form16(client, db, upload_root):
+    viewer = _user(db, "form16-viewer@example.com", employee_id=1)
+    other = _user(db, "form16-other2@example.com", employee_id=2)
+    _link_form16(db, other.employee.id, "form16/2/2026-27/form16_combined.pdf")
+
+    response = client.get(
+        "/api/v1/uploads/form16/2/2026-27/form16_combined.pdf",
+        headers=_headers(viewer),
+    )
+    assert response.status_code == 403
+
+
+def test_payslip_owner_falls_back_to_filename_without_db_row(client, db, upload_root):
+    owner = _user(db, "payslip-fallback@example.com", employee_id=1)
+
+    response = client.get(
+        "/api/v1/uploads/payslips/2026/1/payslip_1_2026_1.pdf",
+        headers=_headers(owner),
+    )
+    assert response.status_code == 200
+
+
+def test_hr_can_fetch_probation_letter(client, db, upload_root):
+    hr = _user(db, "probation-hr@example.com", permissions=("employee_sensitive_view",))
+
+    response = client.get(
+        "/api/v1/uploads/probation_letters/probation_2_confirmation.pdf",
+        headers=_headers(hr),
+    )
+    assert response.status_code == 200
+    assert response.content == b"probation"

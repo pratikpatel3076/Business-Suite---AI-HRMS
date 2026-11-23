@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core.config import demo_seeding_enabled
 from app.apps.crm.models import (
     CRMActivity,
     CRMCompany,
@@ -33,6 +34,8 @@ PIPELINE_STAGES = [
 
 
 def seed_crm_demo_data(db: Session, organization_id: int = 1) -> None:
+    if not demo_seeding_enabled():
+        return
     if db.query(CRMLead).filter(CRMLead.organization_id == organization_id).first():
         return
 

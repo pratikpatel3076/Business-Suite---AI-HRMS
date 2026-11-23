@@ -1,5 +1,5 @@
 from typing import Generator, Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
@@ -17,13 +17,9 @@ def get_db() -> Generator:
         db.close()
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
-    if credentials is None:
+def _user_from_access_token(token: str | None, db: Session) -> User:
+    if not token:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated")
-    token = credentials.credentials
     payload = verify_access_token(token)
     if not payload:
         raise HTTPException(
@@ -41,6 +37,31 @@ def get_current_user(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user account")
     return user
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    return _user_from_access_token(credentials.credentials if credentials else None, db)
+
+
+def get_current_user_for_asset(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Authenticate asset downloads with a Bearer token only.
+
+    Native ``<img>``/``<a>`` requests cannot send an Authorization header; they
+    use a signed, single-path URL instead (see ``app.core.asset_urls``). A
+    query-string access token is deliberately not accepted here. Signed
+    requests are recognised by their ``sig`` parameter and validated by the
+    endpoint, so they do not require a Bearer token.
+    """
+    if request.query_params.get("sig") is not None:
+        return None
+    return _user_from_access_token(credentials.credentials if credentials else None, db)
 
 
 def get_current_active_superuser(current_user: User = Depends(get_current_user)) -> User:

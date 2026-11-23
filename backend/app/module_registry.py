@@ -21,6 +21,7 @@ class AppModule:
 COMMON_ROUTER_MODULES = (
     "app.api.v1.auth",
     "app.api.v1.logs",
+    "app.api.v1.uploads",
     "app.api.v1.users",
     "app.api.v1.workflow_engine",
     "app.ai_agents.api",

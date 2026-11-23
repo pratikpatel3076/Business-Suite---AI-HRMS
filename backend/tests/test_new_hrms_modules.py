@@ -1,8 +1,13 @@
+import json
+import time
 from decimal import Decimal
+from app.core.webhooks import SIGNATURE_HEADER, TIMESTAMP_HEADER, sign_webhook_body
 from app.db.init_db import init_db
 from app.models.employee import Employee
 from app.models.leave import LeaveBalance, LeaveType
 from app.models.payroll import PayrollRecord, PayrollRun
+
+BGV_WEBHOOK_SECRET = "secret://bgv/webhook"
 
 
 def _login(client, email, password):
@@ -148,7 +153,7 @@ def test_whatsapp_ess_benefits_statutory_and_bgv_modules_work(client, db):
             "provider_code": "IDFY",
             "api_base_url": "https://bgv.example/api",
             "api_key_ref": "secret://bgv/idfy",
-            "webhook_secret_ref": "secret://bgv/webhook",
+            "webhook_secret_ref": BGV_WEBHOOK_SECRET,
             "supports_api_submission": "Yes",
         },
         headers=admin,
@@ -186,22 +191,30 @@ def test_whatsapp_ess_benefits_statutory_and_bgv_modules_work(client, db):
     )
     assert updated.status_code == 200
     assert updated.json()["checks"][0]["result"] == "Clear"
+    callback_payload = {
+        "vendor_reference": submitted.json()["vendor_reference"],
+        "event_type": "verification.completed",
+        "status": "Completed",
+        "vendor_status": "closed",
+        "overall_result": "Clear",
+        "report_url": "https://bgv.example/reports/123.pdf",
+        "checks": [
+            {"check_type": "Identity", "status": "Completed", "result": "Clear", "verified_by": "IDfy"},
+            {"check_type": "Address", "status": "Completed", "result": "Clear", "verified_by": "IDfy"},
+        ],
+    }
+    callback_body = json.dumps(callback_payload, separators=(",", ":")).encode("utf-8")
+    sent_at = str(int(time.time()))
     callback = client.post(
         f"/api/v1/background-verification/webhooks/{vendor.json()['id']}",
-        json={
-            "vendor_reference": submitted.json()["vendor_reference"],
-            "event_type": "verification.completed",
-            "status": "Completed",
-            "vendor_status": "closed",
-            "overall_result": "Clear",
-            "report_url": "https://bgv.example/reports/123.pdf",
-            "checks": [
-                {"check_type": "Identity", "status": "Completed", "result": "Clear", "verified_by": "IDfy"},
-                {"check_type": "Address", "status": "Completed", "result": "Clear", "verified_by": "IDfy"},
-            ],
+        content=callback_body,
+        headers={
+            "Content-Type": "application/json",
+            TIMESTAMP_HEADER: sent_at,
+            SIGNATURE_HEADER: sign_webhook_body(BGV_WEBHOOK_SECRET, sent_at, callback_body),
         },
     )
-    assert callback.status_code == 200
+    assert callback.status_code == 200, callback.text
     assert callback.json()["overall_result"] == "Clear"
     assert callback.json()["report_url"].endswith("123.pdf")
     assert any(item["check_type"] == "Address" for item in callback.json()["checks"])

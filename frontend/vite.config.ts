@@ -1,4 +1,4 @@
-import path from "path";
+import { fileURLToPath } from "url";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 
@@ -10,17 +10,13 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "./src"),
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
     },
     server: {
       port: 5173,
       proxy: {
         "/api": {
-          target: apiProxyTarget,
-          changeOrigin: true,
-        },
-        "/uploads": {
           target: apiProxyTarget,
           changeOrigin: true,
         },
@@ -31,17 +27,19 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 800,
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ["react", "react-dom", "react-router-dom"],
-            ui: [
-              "@radix-ui/react-dialog",
-              "@radix-ui/react-dropdown-menu",
-              "@radix-ui/react-select",
-              "@radix-ui/react-tabs",
-            ],
-            charts: ["recharts"],
-            query: ["@tanstack/react-query"],
-            form: ["react-hook-form", "zod"],
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return undefined;
+            if (
+              id.includes("/react/") ||
+              id.includes("/react-dom/") ||
+              id.includes("/react-router/") ||
+              id.includes("/react-router-dom/")
+            ) return "vendor";
+            if (id.includes("/@radix-ui/")) return "ui";
+            if (id.includes("/recharts/")) return "charts";
+            if (id.includes("/@tanstack/react-query/")) return "query";
+            if (id.includes("/react-hook-form/") || id.includes("/zod/")) return "form";
+            return undefined;
           },
         },
       },

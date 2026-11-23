@@ -27,7 +27,14 @@ def _make_unraisablehook(default_hook):
 sys.unraisablehook = _make_unraisablehook(sys.unraisablehook)
 
 os.environ.setdefault("ENVIRONMENT", "test")
+# Demo fixtures are intentionally opt-in in application config; the test
+# suite needs them, so enable them explicitly before settings are imported.
+os.environ.setdefault("SEED_DEMO_DATA", "true")
 os.environ.setdefault("MYSQL_PASSWORD", "")
+# All modules must be installed for tests. Without this, CRM routes are not
+# registered and tenant-isolation tests can 404 instead of exercising access
+# control, silently hiding a failure.
+os.environ.setdefault("INSTALLED_APPS", "hrms,crm,project_management")
 
 from app.main import app
 from app.db.base_class import Base
@@ -75,7 +82,9 @@ def client(db):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
+    # A https base URL keeps Secure refresh cookies in the jar, matching the
+    # production-like cookie policy used outside the development environment.
+    with TestClient(app, base_url="https://testserver") as c:
         yield c
     app.dependency_overrides.clear()
 

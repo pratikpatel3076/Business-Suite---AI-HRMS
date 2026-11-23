@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Sparkles, UserCircle, X, LogOut } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import { authApi } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { getRoleLabel, getRoleNav } from "@/lib/roles";
 import { getProductForContext } from "@/lib/products";
@@ -29,6 +30,7 @@ export default function Sidebar({ open, collapsed, onClose, onToggleCollapse }: 
         ? "/pms"
         : "/";
   const handleLogout = () => {
+    void authApi.logout().catch(() => undefined);
     logout();
     navigate(product.loginPath, { replace: true });
   };

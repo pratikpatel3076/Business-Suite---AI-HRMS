@@ -18,6 +18,10 @@ class BackgroundVerificationVendor(Base):
     status = Column(String(30), default="Active", index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    @property
+    def has_webhook_secret(self) -> bool:
+        return bool(self.webhook_secret_ref)
+
 
 class BackgroundVerificationRequest(Base):
     __tablename__ = "background_verification_requests"

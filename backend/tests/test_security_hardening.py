@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from jose import jwt
@@ -11,7 +11,11 @@ def test_access_token_accepts_previous_secret_during_rotation(monkeypatch):
     previous_secret = "previous-secret-for-rotation"
     monkeypatch.setattr(settings, "SECRET_KEY_PREVIOUS", previous_secret)
     token = jwt.encode(
-        {"sub": "1", "type": "access"},
+        {
+            "sub": "1",
+            "type": "access",
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+        },
         previous_secret,
         algorithm=settings.ALGORITHM,
     )

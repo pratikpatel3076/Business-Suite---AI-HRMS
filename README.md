@@ -77,7 +77,7 @@ cd backend
 python -m venv venv
 venv\Scripts\activate
 python -m pip install -r requirements.txt
-alembic upgrade head
+python scripts/init_schema.py
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -89,6 +89,27 @@ BACKEND_CORS_ORIGINS=http://localhost:5173,http://localhost:5174
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 ```
+
+### Database schema and migrations
+
+Use `python scripts/init_schema.py` for a **fresh, empty database**. It loads the common models plus the models of every installed app, creates the tables, and stamps the single Alembic head, so a following `alembic upgrade head` is a no-op. It refuses to run when an `alembic_version` table or any application table already exists; `--force` is the only override and should be used deliberately.
+
+For an **existing database**, always use `alembic upgrade head` — never `init_schema.py`.
+
+Set `INSTALLED_APPS` before initializing so every app you intend to use gets its tables (for example `INSTALLED_APPS=hrms,crm,project_management`).
+
+**KNOWN OPEN DEFECT — replaying the full Alembic chain on an empty database is broken.** Revision `20260430_001_initial_hrms_schema.py` uses `Base.metadata.create_all()` against live metadata instead of a frozen baseline, so later revisions re-add the same columns and fail (for example `duplicate column name: interests`). Fresh installs therefore use `init_schema.py`. Proposed fix: freeze the initial schema in revision 001, then re-verify the full chain from an empty MySQL database. This defect is **not fixed**.
+
+### Development-only demo data
+
+Demo users and sample CRM records are **not** part of a normal installation. They are created only when both `ENVIRONMENT != production` and `SEED_DEMO_DATA=true` are set, and they are intended strictly for local development and automated tests. Never use demo credentials outside a disposable environment. For a production deployment, create the first administrator explicitly:
+
+```bash
+cd backend
+ADMIN_EMAIL=ops@example.com ADMIN_PASSWORD='<strong-password>' python scripts/create_admin.py
+```
+
+`ADMIN_EMAIL`/`ADMIN_PASSWORD` may be omitted to use interactive prompts. The password must be at least 12 characters and include uppercase, lowercase, and numeric characters.
 
 ## Local Frontend Setup
 

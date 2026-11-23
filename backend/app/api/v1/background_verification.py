@@ -1,8 +1,13 @@
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
+
 from app.core.deps import RequirePermission, get_db
+from app.core.encryption import decrypt_secret, encrypt_secret
+from app.core.webhooks import verify_webhook_signature
 from app.models.background_verification import (
     BackgroundVerificationCheck,
     BackgroundVerificationConnectorEvent,
@@ -26,9 +31,20 @@ from app.schemas.background_verification import (
 router = APIRouter(prefix="/background-verification", tags=["Background Verification"])
 
 
+def _encrypt_webhook_secret(value: str | None) -> str | None:
+    return encrypt_secret(value)
+
+
+def _decrypt_webhook_secret(value: str | None) -> str | None:
+    return decrypt_secret(value)
+
+
 @router.post("/vendors", response_model=BackgroundVerificationVendorSchema, status_code=201)
 def create_vendor(data: BackgroundVerificationVendorCreate, db: Session = Depends(get_db), current_user: User = Depends(RequirePermission("recruitment_manage"))):
-    vendor = BackgroundVerificationVendor(**data.model_dump())
+    payload = data.model_dump()
+    if payload.get("webhook_secret_ref"):
+        payload["webhook_secret_ref"] = _encrypt_webhook_secret(payload["webhook_secret_ref"])
+    vendor = BackgroundVerificationVendor(**payload)
     db.add(vendor)
     db.commit()
     db.refresh(vendor)
@@ -157,20 +173,38 @@ def update_check(check_id: int, data: BackgroundVerificationCheckUpdate, db: Ses
 
 
 @router.post("/webhooks/{vendor_id}", response_model=BackgroundVerificationRequestSchema)
-def ingest_vendor_webhook(vendor_id: int, data: BackgroundVerificationWebhookPayload, db: Session = Depends(get_db)):
+async def ingest_vendor_webhook(vendor_id: int, request: Request, db: Session = Depends(get_db)):
+    raw_body = await request.body()
     vendor = db.query(BackgroundVerificationVendor).filter(BackgroundVerificationVendor.id == vendor_id).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Background verification vendor not found")
-    request = db.query(BackgroundVerificationRequest).filter(
+
+    try:
+        secret = _decrypt_webhook_secret(vendor.webhook_secret_ref)
+    except Exception:
+        secret = None
+    verify_webhook_signature(
+        raw_body,
+        secret,
+        request.headers.get("X-Webhook-Signature"),
+        request.headers.get("X-Webhook-Timestamp"),
+    )
+
+    try:
+        data = BackgroundVerificationWebhookPayload.model_validate_json(raw_body)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
+
+    verification = db.query(BackgroundVerificationRequest).filter(
         BackgroundVerificationRequest.vendor_id == vendor_id,
         BackgroundVerificationRequest.vendor_reference == data.vendor_reference,
     ).first()
-    if not request:
+    if not verification:
         raise HTTPException(status_code=404, detail="Background verification request not found for vendor reference")
 
     payload = data.model_dump()
     db.add(BackgroundVerificationConnectorEvent(
-        request_id=request.id,
+        request_id=verification.id,
         vendor_id=vendor_id,
         event_type=data.event_type,
         vendor_reference=data.vendor_reference,
@@ -178,37 +212,37 @@ def ingest_vendor_webhook(vendor_id: int, data: BackgroundVerificationWebhookPay
     ))
 
     if data.status:
-        request.status = data.status
+        verification.status = data.status
     if data.vendor_status:
-        request.vendor_status = data.vendor_status
+        verification.vendor_status = data.vendor_status
     if data.overall_result:
-        request.overall_result = data.overall_result
+        verification.overall_result = data.overall_result
     if data.report_url:
-        request.report_url = data.report_url
+        verification.report_url = data.report_url
     if data.remarks:
-        request.remarks = data.remarks
-    request.last_synced_at = datetime.now(timezone.utc)
+        verification.remarks = data.remarks
+    verification.last_synced_at = datetime.now(timezone.utc)
 
-    checks_by_type = {check.check_type.lower(): check for check in request.checks}
+    checks_by_type = {check.check_type.lower(): check for check in verification.checks}
     for incoming in data.checks:
         check = checks_by_type.get(incoming.check_type.lower())
         if not check:
-            check = BackgroundVerificationCheck(request_id=request.id, check_type=incoming.check_type)
+            check = BackgroundVerificationCheck(request_id=verification.id, check_type=incoming.check_type)
             db.add(check)
-            request.checks.append(check)
+            verification.checks.append(check)
         for field, value in incoming.model_dump(exclude_unset=True).items():
             setattr(check, field, value)
         if incoming.status.lower() in {"completed", "verified"}:
             check.verified_at = datetime.now(timezone.utc)
 
     terminal_statuses = {"Completed", "Clear", "Red", "Amber", "Rejected"}
-    if request.status in terminal_statuses or data.overall_result in {"Clear", "Red", "Amber"}:
-        request.status = "Completed" if request.status in {"Clear", "Red", "Amber"} else request.status
-        request.completed_at = datetime.now(timezone.utc)
+    if verification.status in terminal_statuses or data.overall_result in {"Clear", "Red", "Amber"}:
+        verification.status = "Completed" if verification.status in {"Clear", "Red", "Amber"} else verification.status
+        verification.completed_at = datetime.now(timezone.utc)
 
     db.commit()
-    db.refresh(request)
-    return request
+    db.refresh(verification)
+    return verification
 
 
 @router.get("/requests/{request_id}/events", response_model=List[BackgroundVerificationConnectorEventSchema])

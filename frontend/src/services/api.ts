@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosResponse } from "axios";
+import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/store/authStore";
 import { getApiBaseUrl } from "@/config/runtime";
 
@@ -8,43 +8,60 @@ export const api = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
   timeout: 30000,
+  // Send the HttpOnly refresh cookie. In split-origin deployments the API must
+  // be proxied through the frontend origin (or SameSite=None explicitly
+  // configured) - see docs/security/AUDIT.md.
+  withCredentials: true,
 });
 
-// Request interceptor: attach access token
+// Request interceptor: attach the in-memory access token
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Custom header required by /auth/refresh and /auth/logout. It forces a
+  // CORS preflight cross-site and cannot be set by a simple form submission.
+  config.headers["X-CSRF-Token"] = "hrms-app";
   return config;
 });
 
-// Response interceptor: handle token refresh
+// A single in-flight refresh prevents a burst of 401s from racing.
+let refreshInFlight: Promise<string | null> | null = null;
+
+function refreshAccessToken(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = api
+      .post<{ access_token: string }>("/auth/refresh", {})
+      .then((res) => {
+        const token = res.data.access_token;
+        useAuthStore.getState().setAccessToken(token);
+        return token;
+      })
+      .catch(() => {
+        useAuthStore.getState().logout();
+        return null;
+      })
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
+// Response interceptor: refresh once via the cookie, then retry
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
-    const original = error.config as typeof error.config & { _retry?: boolean };
+    const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const isRefreshCall = original?.url?.includes("/auth/refresh");
 
-    if (error.response?.status === 401 && !original?._retry) {
+    if (error.response?.status === 401 && original && !original._retry && !isRefreshCall) {
       original._retry = true;
-      const { refreshToken, setTokens, logout } = useAuthStore.getState();
-
-      if (refreshToken) {
-        try {
-          const res = await axios.post(`${BASE_URL}/auth/refresh`, {
-            refresh_token: refreshToken,
-          });
-          const { access_token, refresh_token } = res.data;
-          setTokens(access_token, refresh_token);
-          if (original?.headers) {
-            original.headers.Authorization = `Bearer ${access_token}`;
-          }
-          return api(original!);
-        } catch {
-          logout();
-        }
-      } else {
-        logout();
+      const token = await refreshAccessToken();
+      if (token) {
+        original.headers.Authorization = `Bearer ${token}`;
+        return api(original);
       }
     }
 
@@ -52,12 +69,38 @@ api.interceptors.response.use(
   }
 );
 
+/** Exchange the refresh cookie for an access token and load the user on boot. */
+export async function bootstrapAuth(): Promise<void> {
+  const store = useAuthStore.getState();
+  try {
+    const { data } = await api.post<{ access_token: string }>("/auth/refresh", {});
+    store.setAccessToken(data.access_token);
+    const me = await api.get<{
+      id: number;
+      email: string;
+      is_superuser: boolean;
+      role?: { name?: string } | string | null;
+      employee_id?: number | null;
+    }>("/auth/me");
+    store.setUser({
+      id: me.data.id,
+      email: me.data.email,
+      role: typeof me.data.role === "string" ? me.data.role : me.data.role?.name || null,
+      is_superuser: me.data.is_superuser,
+      employee_id: me.data.employee_id,
+    });
+  } catch {
+    store.logout();
+  } finally {
+    store.setHydrated(true);
+  }
+}
+
 // API service functions
 export const authApi = {
   login: (email: string, password: string, module?: string) =>
     api.post("/auth/login", { email, password, module }),
-  refresh: (refreshToken: string) =>
-    api.post("/auth/refresh", { refresh_token: refreshToken }),
+  refresh: () => api.post("/auth/refresh", {}),
   me: () => api.get("/auth/me"),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post("/auth/change-password", {

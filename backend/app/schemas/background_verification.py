@@ -15,8 +15,16 @@ class BackgroundVerificationVendorCreate(BaseModel):
     status: str = "Active"
 
 
-class BackgroundVerificationVendorSchema(BackgroundVerificationVendorCreate):
+class BackgroundVerificationVendorSchema(BaseModel):
     id: int
+    name: str
+    contact_email: Optional[str] = None
+    provider_code: Optional[str] = None
+    api_base_url: Optional[str] = None
+    api_key_ref: Optional[str] = None
+    supports_api_submission: str = "No"
+    status: str = "Active"
+    has_webhook_secret: bool = False
     created_at: datetime
 
     class Config:

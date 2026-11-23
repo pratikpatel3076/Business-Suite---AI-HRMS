@@ -1,8 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
+from app.api.v1.auth import CSRF_HEADER_NAME, CSRF_HEADER_VALUE
+from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models.user import User, Role
 from app.db.init_db import init_db
+
+
+def _cookie_auth_headers() -> dict:
+    return {"Origin": settings.BACKEND_CORS_ORIGINS[0], CSRF_HEADER_NAME: CSRF_HEADER_VALUE}
 
 
 def test_login_success(client, db):
@@ -25,7 +31,12 @@ def test_login_success(client, db):
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
-    assert "refresh_token" in data
+    # The refresh token must never be readable by JavaScript.
+    assert data.get("refresh_token") is None
+    cookie_header = " ".join(response.headers.get_list("set-cookie"))
+    assert "refresh_token=" in cookie_header
+    assert "HttpOnly" in cookie_header
+    assert "SameSite=strict" in cookie_header
     assert data["email"] == "test@example.com"
 
 
@@ -87,9 +98,9 @@ def test_refresh_token(client, db):
         "email": "refresh@example.com",
         "password": "Refresh@123",
     })
-    refresh_token = login_response.json()["refresh_token"]
-
-    refresh_response = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    # Refresh uses the HttpOnly cookie automatically stored by TestClient.
+    assert any(c.name == "refresh_token" for c in client.cookies.jar)
+    refresh_response = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
     assert refresh_response.status_code == 200
     assert "access_token" in refresh_response.json()
 

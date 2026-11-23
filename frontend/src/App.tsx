@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { useAuthStore } from "@/store/authStore";
@@ -11,6 +11,7 @@ import { crmRoutes } from "@/apps/crm/routes";
 import { projectManagementRoutes } from "@/apps/project-management/routes";
 import { aiAgentRoutes } from "@/pages/ai-agents/routes";
 import PMSRealtimeBridge from "@/apps/project-management/PMSRealtimeBridge";
+import { bootstrapAuth } from "@/services/api";
 
 const LoginPage = React.lazy(() => import("@/pages/auth/LoginPage"));
 
@@ -51,6 +52,10 @@ function ProductHomeRedirect() {
 export default function App() {
   const enabledRoutes = getEnabledRoutes();
   const routes = [...enabledRoutes, ...aiAgentRoutes];
+
+  useEffect(() => {
+    void bootstrapAuth();
+  }, []);
 
   return (
     <>

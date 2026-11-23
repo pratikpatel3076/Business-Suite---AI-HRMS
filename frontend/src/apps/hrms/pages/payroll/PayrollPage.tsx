@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { leavePayrollApi, payrollApi, statutoryComplianceApi } from "@/services/api";
-import { assetUrl, formatCurrency, formatDate, statusColor } from "@/lib/utils";
+import { formatCurrency, formatDate, statusColor } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useAuthStore } from "@/store/authStore";

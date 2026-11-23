@@ -21,7 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { employeeApi } from "@/services/api";
-import { assetUrl, getInitials } from "@/lib/utils";
+import { getInitials } from "@/lib/utils";
+import { useAssetUrl } from "@/lib/secureAssetUrl";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthStore } from "@/store/authStore";
@@ -83,6 +84,7 @@ function useDebouncedValue(value: string, delay = 300) {
 
 export default function EmployeeDirectoryPage() {
   usePageTitle("Employee Directory");
+  const assetUrl = useAssetUrl();
   const { toast } = useToast();
   const { user } = useAuthStore();
   const canManage = isPrivileged(user?.role, user?.is_superuser);

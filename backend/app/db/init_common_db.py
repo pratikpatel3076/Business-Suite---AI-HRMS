@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from app.core.config import demo_seeding_enabled
 from app.core.security import get_password_hash
 from app.models.user import Permission, Role, User
 
@@ -44,6 +45,12 @@ def init_common_db(db: Session) -> None:
             db.add(role)
             db.flush()
         role.permissions = [perm_map[name] for name in role_data["permissions"] if name in perm_map]
+
+    # The only admin account in a non-HRMS deployment must be created with
+    # scripts/create_admin.py; never ship a well-known password in production.
+    if not demo_seeding_enabled():
+        db.commit()
+        return
 
     role = db.query(Role).filter(Role.name == "super_admin").first()
     user = db.query(User).filter(User.email == "admin@platform.local").first()

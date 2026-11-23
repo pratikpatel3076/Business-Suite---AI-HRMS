@@ -70,6 +70,7 @@ class UserSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_id = Column(String(64), unique=True, index=True)
     session_token_hash = Column(String(255), nullable=False, index=True)
     device_name = Column(String(150))
     ip_address = Column(String(50))
