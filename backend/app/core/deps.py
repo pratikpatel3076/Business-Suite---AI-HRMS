@@ -50,15 +50,18 @@ def get_current_user_for_asset(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
-) -> User:
-    """Authenticate asset downloads, including native <img>/<a> requests.
+) -> Optional[User]:
+    """Authenticate asset downloads with a Bearer token only.
 
-    Browsers cannot attach Authorization headers to image or link requests, so
-    this dependency alone accepts a short-lived access token in the `token`
-    query parameter. It is intentionally scoped to asset routes only.
+    Native ``<img>``/``<a>`` requests cannot send an Authorization header; they
+    use a signed, single-path URL instead (see ``app.core.asset_urls``). A
+    query-string access token is deliberately not accepted here. Signed
+    requests are recognised by their ``sig`` parameter and validated by the
+    endpoint, so they do not require a Bearer token.
     """
-    token = credentials.credentials if credentials else request.query_params.get("token")
-    return _user_from_access_token(token, db)
+    if request.query_params.get("sig") is not None:
+        return None
+    return _user_from_access_token(credentials.credentials if credentials else None, db)
 
 
 def get_current_active_superuser(current_user: User = Depends(get_current_user)) -> User:

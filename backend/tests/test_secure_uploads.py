@@ -45,10 +45,9 @@ def test_authenticated_user_can_download(client, upload_root, superuser_headers)
     assert response.content == b"fake-image"
 
 
-def test_token_query_parameter_supports_native_browser_requests(client, upload_root, superuser_token):
+def test_access_token_query_parameter_is_not_accepted(client, upload_root, superuser_token):
     response = client.get(f"{UPLOAD_URL}?token={superuser_token}")
-    assert response.status_code == 200
-    assert response.content == b"fake-image"
+    assert response.status_code == 403
 
 
 @pytest.mark.parametrize(

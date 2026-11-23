@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     ENCRYPTION_KEY: Optional[str] = None
     ENCRYPTION_KEY_PREVIOUS: Optional[str] = None
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Database

@@ -1,30 +1,59 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getApiBaseUrl } from "@/config/runtime";
-import { useAuthStore } from "@/store/authStore";
+import { api } from "@/services/api";
 
 const STORED_UPLOAD_PREFIX = "/uploads/";
+const API_UPLOAD_PREFIX = "/api/v1/uploads/";
+const SIGNED_URL_TTL_MS = 55_000;
 
-/** Convert a stored `/uploads/...` URL into an authenticated API download URL. */
-export function buildAssetUrl(path?: string | null, token?: string | null): string | undefined {
-  if (!path) return undefined;
-  if (/^https?:\/\//i.test(path)) return path;
+type CachedUrl = { url: string; expiresAt: number };
 
-  let url = path;
-  if (path.startsWith(STORED_UPLOAD_PREFIX)) {
-    const apiBase = getApiBaseUrl().replace(/\/+$/, "");
-    url = `${apiBase}${path}`;
-  }
-
-  // Native <img>/<a> requests cannot send an Authorization header. The upload
-  // endpoint accepts this token only on its own route and it is never logged.
-  if (token) {
-    url += `${url.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`;
-  }
-  return url;
-}
-
-/** Subscribe to auth state so asset URLs refresh after login/logout. */
+/**
+ * Resolve a stored `/uploads/...` URL to a short-lived signed URL.
+ *
+ * Signing requires an authenticated API call, so the returned function stays
+ * synchronous for existing callers: it returns a cached signed URL immediately
+ * and triggers a background signing request on first use, re-rendering when
+ * the URL arrives. Access tokens are never placed in query strings.
+ */
 export function useAssetUrl(): (path?: string | null) => string | undefined {
-  const token = useAuthStore((state) => state.accessToken);
-  return useCallback((path?: string | null) => buildAssetUrl(path, token), [token]);
+  const cache = useRef<Map<string, CachedUrl>>(new Map());
+  const pending = useRef<Set<string>>(new Set());
+  const mounted = useRef(true);
+  const [, forceRender] = useState(0);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  return useCallback((path?: string | null) => {
+    if (!path) return undefined;
+    const isStored = path.startsWith(STORED_UPLOAD_PREFIX) || path.startsWith(API_UPLOAD_PREFIX);
+    if (!isStored) return path;
+
+    const cached = cache.current.get(path);
+    if (cached && cached.expiresAt > Date.now()) return cached.url;
+
+    if (!pending.current.has(path)) {
+      pending.current.add(path);
+      api
+        .post<{ url: string }>("/uploads/sign", { path })
+        .then(({ data }) => {
+          const apiBase = getApiBaseUrl().replace(/\/+$/, "");
+          cache.current.set(path, {
+            url: `${apiBase}${data.url}`,
+            expiresAt: Date.now() + SIGNED_URL_TTL_MS,
+          });
+          pending.current.delete(path);
+          if (mounted.current) forceRender((value) => value + 1);
+        })
+        .catch(() => {
+          pending.current.delete(path);
+        });
+    }
+    return undefined;
+  }, []);
 }
