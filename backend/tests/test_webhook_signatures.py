@@ -102,9 +102,26 @@ def test_bgv_webhook_rejects_replayed_signature(client, bgv_webhook_setup):
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
+def _crm_calendar_webhook_installed() -> bool:
+    """Check route paths, including routers nested by newer FastAPI versions."""
+    paths: list[str] = []
+
+    def walk(routes) -> None:
+        for route in routes:
+            path = getattr(route, "path", None)
+            if path:
+                paths.append(path)
+            original = getattr(route, "original_router", None)
+            if original is not None:
+                walk(original.routes)
+
+    walk(app.routes)
+    return any(path.endswith("/crm/calendar/webhook") for path in paths)
+
+
 def test_crm_calendar_webhook_is_disabled_by_default(monkeypatch, client):
     monkeypatch.setattr(settings, "CRM_CALENDAR_WEBHOOK_ENABLED", False)
-    if not any(route.path == "/api/v1/crm/calendar/webhook" for route in app.routes):
+    if not _crm_calendar_webhook_installed():
         pytest.skip("CRM router is not installed in this test environment")
 
     response = client.post("/api/v1/crm/calendar/webhook", content=b"{}")
@@ -115,7 +132,7 @@ def test_crm_calendar_webhook_is_disabled_by_default(monkeypatch, client):
 def test_crm_calendar_webhook_signature_verification(monkeypatch, client, case):
     monkeypatch.setattr(settings, "CRM_CALENDAR_WEBHOOK_ENABLED", True)
     monkeypatch.setattr(settings, "CRM_CALENDAR_WEBHOOK_SECRET", "calendar-webhook-secret-0123456789")
-    if not any(route.path == "/api/v1/crm/calendar/webhook" for route in app.routes):
+    if not _crm_calendar_webhook_installed():
         pytest.skip("CRM router is not installed in this test environment")
 
     raw = json.dumps({"event": "event.updated"}, separators=(",", ":")).encode("utf-8")

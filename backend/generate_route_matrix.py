@@ -168,9 +168,26 @@ def risk_level(path: str, auth_names: list[str], has_auth: bool) -> str:
     return "-"
 
 
+def iter_routes(routes, prefix=""):
+    """Yield (route, full path) from nested routers used by newer FastAPI.
+
+    Recent FastAPI versions keep included routers as ``_IncludedRouter``
+    objects instead of flattening them into ``app.routes``. The mounted path
+    prefix lives on each wrapper's ``include_context``, so it must be
+    accumulated while walking to reconstruct the public URL.
+    """
+    for route in routes:
+        context = getattr(route, "include_context", None)
+        current_prefix = prefix + (getattr(context, "prefix", "") or "") if context is not None else prefix
+        if getattr(route, "path", None):
+            yield route, current_prefix + route.path
+        original = getattr(route, "original_router", None)
+        if original is not None:
+            yield from iter_routes(original.routes, current_prefix)
+
+
 rows = []
-for route in app.routes:
-    path = getattr(route, "path", None)
+for route, path in iter_routes(app.routes):
     methods = sorted(getattr(route, "methods", None) or [])
     if not path or not methods:
         continue
