@@ -76,7 +76,7 @@ def test_login_sets_hardened_refresh_cookie(client, db):
     assert "HttpOnly" in cookie_header
     assert "SameSite=strict" in cookie_header
     assert f"Path={REFRESH_COOKIE_PATH}" in cookie_header
-    assert "Secure" not in cookie_header  # test environment
+    assert "Secure" in cookie_header  # Secure in every environment except development
 
     payload = verify_access_token(response.json()["access_token"])
     assert payload is not None

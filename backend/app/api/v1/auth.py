@@ -91,7 +91,9 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         path=REFRESH_COOKIE_PATH,
         httponly=True,
-        secure=settings.ENVIRONMENT.lower() == "production",
+        # Test and production both use HTTPS in real deployments; only local
+        # development may send the refresh cookie without the Secure flag.
+        secure=settings.ENVIRONMENT.lower() != "development",
         samesite="strict",
     )
 

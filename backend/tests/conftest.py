@@ -82,7 +82,9 @@ def client(db):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
+    # A https base URL keeps Secure refresh cookies in the jar, matching the
+    # production-like cookie policy used outside the development environment.
+    with TestClient(app, base_url="https://testserver") as c:
         yield c
     app.dependency_overrides.clear()
 

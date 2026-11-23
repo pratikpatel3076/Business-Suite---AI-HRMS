@@ -3,6 +3,7 @@ from pydantic import AnyHttpUrl, EmailStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
 import secrets
+import sys
 from urllib.parse import quote_plus
 
 
@@ -19,7 +20,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Business Suite"
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = "production"
     INSTALLED_APPS: Union[List[str], str] = ["hrms"]
 
     # Data seeding (development/test only; production must use scripts/create_admin.py)
@@ -130,6 +131,17 @@ class Settings(BaseSettings):
             except Exception:
                 return [i.strip() for i in v.split(",")]
         return v
+
+    @field_validator("ENVIRONMENT", mode="before")
+    @classmethod
+    def validate_environment(cls, v: Any) -> str:
+        environment = str(v).strip().lower()
+        allowed = {"development", "test", "production"}
+        if environment not in allowed:
+            raise ValueError(f"ENVIRONMENT must be one of {sorted(allowed)}")
+        if environment == "test" and "pytest" not in sys.modules:
+            raise ValueError("ENVIRONMENT=test is only permitted when pytest is loaded")
+        return environment
 
     @field_validator("INSTALLED_APPS", mode="before")
     @classmethod

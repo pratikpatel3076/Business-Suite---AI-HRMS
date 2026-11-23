@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 from typing import Callable, Optional
 from urllib.parse import parse_qsl, urlencode
@@ -7,6 +8,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class AuditLogMiddleware(BaseHTTPMiddleware):
@@ -30,7 +33,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             try:
                 await self._log_request(request, response.status_code, duration_ms)
             except Exception:
-                pass
+                logger.exception("Failed to persist audit log for %s %s", request.method, request.url.path)
 
             return response
         except Exception as exc:
@@ -38,7 +41,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             try:
                 await self._log_request(request, 500, duration_ms, error=exc)
             except Exception:
-                pass
+                logger.exception("Failed to persist error audit log for %s %s", request.method, request.url.path)
             raise
 
     def _should_skip(self, request: Request) -> bool:
@@ -68,7 +71,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
                 if payload:
                     user_id = int(payload.get("sub", 0)) or None
         except Exception:
-            pass
+            logger.exception("Failed to resolve user for audit log")
 
         db = SessionLocal()
         try:
@@ -90,6 +93,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             db.add(log)
             db.commit()
         except Exception:
+            logger.exception("Failed to write audit log for %s %s", request.method, request.url.path)
             db.rollback()
         finally:
             db.close()
@@ -97,10 +101,10 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
     def _description(self, request: Request, error: Optional[Exception]) -> Optional[str]:
         parts = []
         if request.url.query:
-            # Asset requests carry a bearer token in the query string because
-            # browsers cannot set headers on <img>/<a> requests. Never persist it.
+            # Assets now use short-lived signed URLs, but redact any legacy or
+            # accidental credential-like parameter before persisting the query.
             redacted = [
-                (key, "REDACTED" if key.lower() in {"token", "access_token"} else value)
+                (key, "REDACTED" if key.lower() in {"token", "access_token", "sig"} else value)
                 for key, value in parse_qsl(request.url.query, keep_blank_values=True)
             ]
             parts.append(f"query={urlencode(redacted)}")

@@ -36,7 +36,7 @@ Statuses below describe the current follow-up pass only. Each item is committed 
 | 1 | Upload URL prefix authorization | Fixed (targeted tests pass) | See below. |
 | 2 | Signed single-path asset URLs; remove `?token=`; 15-minute access tokens | Fixed (targeted tests pass; frontend build passes) | See below. |
 | 3 | Alembic-only schema changes in production | Fixed (targeted tests pass) | See below. |
-| 4 | Environment allowlist and cookie/logging safety | Pending | — |
+| 4 | Environment allowlist and cookie/logging safety | Fixed (targeted tests pass) | See below. |
 | 5 | Rate limiting per IP + email, Redis storage, proxy docs | Pending | — |
 | 6 | Refresh/logout origin checks and rotated-token reuse revocation | Pending | — |
 | 7 | CI, Docker, ruff, SECURITY.md, .env.example | Pending | — |
@@ -54,6 +54,10 @@ Stored URLs are now checked against an explicit prefix allowlist in `app/core/up
 ### Item 3 — Alembic-only schema in production
 
 `local_schema_management_enabled()` in `app/core/config.py` gates schema work to `ENVIRONMENT in {"development", "test"}`. The startup lifespan now calls `Base.metadata.create_all`, `ensure_crm_schema`, and `ensure_pms_schema` only under that flag; production relies entirely on Alembic. Demo CRM seeding is likewise skipped outside local environments. `tests/test_startup_schema.py` asserts the flag values and that a production lifespan makes no schema calls (development makes them). Targeted run with the secret-configuration suite: **14 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item3_startup.log`).
+
+### Item 4 — environment safety
+
+`ENVIRONMENT` now defaults to `production`, is restricted to `development`/`test`/`production`, and `ENVIRONMENT=test` is rejected outside pytest. The refresh cookie is `Secure` in every environment except local development; the test `TestClient` uses an https base URL so it still exercises the cookie flow. `AuditLogMiddleware._log_request` now logs persistence and token-parsing failures with `logger.exception` instead of swallowing them silently, and redacts `sig` alongside token parameters. `tests/test_environment_safety.py` covers the default, invalid values, the pytest guard, cookie flags, and error logging. Targeted run with the auth suites: **40 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item4_environment.log`).
 
 ## Task 8 — auth surface review (report before fixes)
 
@@ -115,3 +119,4 @@ These are explicit, open gaps. None is claimed as fixed or validated:
 - Follow-up item 1: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_upload_authorization.py tests/test_secure_uploads.py` — **25 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item1_uploads.log`).
 - Follow-up item 2: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_signed_asset_urls.py tests/test_upload_authorization.py tests/test_secure_uploads.py` — **33 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item2_signed.log`); `npm run build` succeeded (`C:\Users\prati\AppData\Local\Temp\opencode\item2_frontend_build.log`).
 - Follow-up item 3: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_startup_schema.py tests/test_secret_configuration.py` — **14 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item3_startup.log`).
+- Follow-up item 4: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_environment_safety.py tests/test_secret_configuration.py tests/test_startup_schema.py tests/test_auth.py tests/test_auth_hardening.py` — **40 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item4_environment.log`).
