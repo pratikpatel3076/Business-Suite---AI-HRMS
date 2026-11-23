@@ -1,5 +1,7 @@
 """Signed, single-path asset URLs replace the query-string access token."""
 
+import hashlib
+import hmac
 import time
 from datetime import date, datetime, timezone
 from urllib.parse import parse_qs, urlparse
@@ -7,7 +9,14 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from jose import jwt
 
-from app.core.asset_urls import ASSET_URL_TTL_SECONDS, create_signed_asset_url
+from app.core.asset_urls import (
+    ASSET_URL_KEY_LABEL,
+    ASSET_URL_TTL_SECONDS,
+    _signature,
+    asset_url_signing_key,
+    verify_signed_asset_url,
+    create_signed_asset_url,
+)
 from app.core.config import settings
 from app.core.security import create_access_token, verify_access_token
 from app.models.employee import Employee, EmployeeDocument
@@ -136,7 +145,6 @@ def test_signed_url_is_bound_to_one_path(client, db, upload_root):
 def test_expired_signature_is_rejected(client, upload_root):
     relative = "employee_docs/2/other.pdf"
     expires = str(int(time.time()) - 1)
-    from app.core.asset_urls import _signature
 
     response = client.get(
         f"/api/v1/uploads/{relative}",
@@ -167,6 +175,23 @@ def test_access_token_default_lifetime_is_15_minutes():
         algorithm=settings.ALGORITHM,
     )
     assert verify_access_token(expected) is not None
+
+
+def test_asset_url_key_is_derived_from_secret_key_with_label():
+    assert asset_url_signing_key() == hmac.new(
+        settings.SECRET_KEY.encode("utf-8"), ASSET_URL_KEY_LABEL, hashlib.sha256
+    ).digest()
+
+
+def test_raw_secret_key_cannot_sign_or_verify_asset_url():
+    relative = "employee_docs/2/other.pdf"
+    expires = str(int(time.time()) + ASSET_URL_TTL_SECONDS)
+    message = f"{relative}|{expires}".encode("utf-8")
+    raw_key_signature = hmac.new(settings.SECRET_KEY.encode("utf-8"), message, hashlib.sha256).hexdigest()
+
+    assert raw_key_signature != _signature(f"{relative}|{expires}")
+    assert verify_signed_asset_url(relative, expires, raw_key_signature) is False
+    assert verify_signed_asset_url(relative, expires, _signature(f"{relative}|{expires}")) is True
 
 
 def test_signed_url_helper_uses_sixty_second_window():

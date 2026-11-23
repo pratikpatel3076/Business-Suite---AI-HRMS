@@ -159,7 +159,7 @@ Statuses below describe the current pass only. Each item is committed separately
 | # | Item | Status | Evidence |
 | --- | --- | --- | --- |
 | 1 | Upload prefix inventory and authorization | Fixed (targeted tests pass) | See below. |
-| 2 | Derived asset-URL signing key | Pending | — |
+| 2 | Derived asset-URL signing key | Fixed (targeted tests pass) | See below. |
 | 3 | 30-second refresh replay grace window | Pending | — |
 | 4 | Empty-database Alembic baseline review | Pending | — |
 | 5 | Final full suite and branch report | Pending | — |
@@ -171,3 +171,7 @@ Added `backend/scripts/enumerate_upload_prefixes.py`, which combines an AST scan
 `PREFIX_RULES` is now the single source of truth for enforcement and mapping. It covers the gaps from this pass: `probation_letters/` (HR/superuser only), `statutory_validations/`, `templates/statutory/`, both `quotations/` and `crm/quotations/`, and every `exports/*` subfolder (`payroll/<run>/`, `payroll/<run>/payments/`, `payroll/statutory_validations/`, `payroll/<run>/bank_advice/`, `statutory/`, and `statutory/<run>/`). Unmapped prefixes remain denied for every user, including admins and HR.
 
 Payslips, Form 16, and tax proofs now resolve the owning employee from the persisted DB URL first (`PayrollRecord.payslip_pdf_url`, `Form16Record` part paths, and `EmployeeTaxProof.file_path` joined through its declaration), then fall back to the employee id in the path/filename. The owner may download their own file in addition to `payroll_view`/HR/superuser. Added tests for own payslip and Form 16 (200), another employee's payslip and Form 16 (403), filename fallback without a DB row, HR access to a probation letter (200), and a made-up prefix (403). Targeted run with `tests/test_signed_asset_urls.py`: **26 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item1_targeted_tests.log`).
+
+### Second-pass item 2 — derived asset-URL signing key
+
+`app/core/asset_urls.py` now derives its HMAC key with `HMAC-SHA256(SECRET_KEY, b"asset-url")`. The derived key is used for both signing and verification, giving domain separation from JWT signing and any other HMAC use of `SECRET_KEY`; no new environment variable is needed, so the existing production validation of `SECRET_KEY` still applies. Added `asset_url_signing_key()` and tests asserting the exact derived value, that a signature made with the raw `SECRET_KEY` is rejected, and that the derived signature verifies. All existing expiry, path-binding, and tamper tests still pass. Targeted run with `tests/test_upload_authorization.py` and `tests/test_secure_uploads.py`: **42 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item2_targeted_tests.log`).
