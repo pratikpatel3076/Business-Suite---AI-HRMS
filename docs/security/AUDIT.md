@@ -40,7 +40,7 @@ Statuses below describe the current follow-up pass only. Each item is committed 
 | 5 | Rate limiting per IP + email, Redis storage, proxy docs | Fixed (targeted tests pass) | See below. |
 | 6 | Refresh/logout origin checks and rotated-token reuse revocation | Fixed (targeted tests pass; frontend build passes) | See below. |
 | 7 | CI, Docker, ruff, SECURITY.md, .env.example | Fixed (configs validated locally; remote CI not run) | See below. |
-| 8 | Release notes for session invalidation | Pending | — |
+| 8 | Release notes for session invalidation | Fixed (docs added) | See below. |
 | 9 | Final full suite | Pending | — |
 
 ### Item 1 — upload authorization
@@ -76,6 +76,10 @@ Added `.github/workflows/ci.yml` with two jobs. The backend job installs pinned 
 Added root `ruff.toml` (critical error/undefined-name rules only) and pinned `ruff`/`pip-audit` in `backend/requirements.txt` so local and CI checks use the same versions. Added `backend/Dockerfile` (proxy-header Uvicorn command, now with an entrypoint), `backend/docker-entrypoint.sh` (optional `RUN_MIGRATIONS_ON_START`), `backend/.dockerignore`, `frontend/Dockerfile`, `frontend/nginx.conf` (SPA fallback plus `/api/` proxy with forwarded headers), and root `docker-compose.yml` with `api`, `mysql`, `redis`, and `web` services plus health checks and persistent volumes. `backend/.env.example` now documents all three signing/encryption keys and their previous-key rotation values, `SEED_DEMO_DATA`, `REDIS_URL`, the 15-minute access token, and the fact that demo fixtures are ignored in production. `SECURITY.md` records the reporting process, mandatory deployment controls, and accepted residual risks.
 
 Remote GitHub Actions was **not** executed because nothing was pushed. Local validation: `docker compose config --quiet` passed, both YAML files parsed with `yaml.safe_load`, `ruff check .` passed, the exact `pip-audit` command returned `No known vulnerabilities found, 3 ignored`, and `npm audit --audit-level=moderate` returned `0 vulnerabilities`. Docker image builds and the MySQL migration round trip were not run locally because the Docker daemon is unavailable; the round trip is now an explicit CI step.
+
+### Item 8 — release notes
+
+Added `docs/RELEASE_NOTES.md` with an explicit deployment notice: all existing sessions are invalidated on deploy because refresh tokens now require a `jti` claim and a matching `UserSession` row, so users must sign in again. The same operational note is included in `SECURITY.md`.
 
 ## Task 8 — auth surface review (report before fixes)
 
@@ -141,3 +145,4 @@ These are explicit, open gaps. None is claimed as fixed or validated:
 - Follow-up item 5: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_auth_limits.py tests/test_auth.py tests/test_auth_hardening.py tests/test_environment_safety.py` — **37 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item5_rate_limits.log`).
 - Follow-up item 6: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_auth_hardening.py tests/test_auth.py tests/test_auth_limits.py` — **33 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item6_csrf.log`); `npm run build` succeeded (`C:\Users\prati\AppData\Local\Temp\opencode\item6_frontend_build.log`).
 - Follow-up item 7 local config validation: `docker compose config --quiet` passed; `yaml.safe_load` parsed `.github/workflows/ci.yml` and `docker-compose.yml`; `ruff check .` passed; `pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-1325 --ignore-vuln PYSEC-2026-4298` reported `No known vulnerabilities found, 3 ignored`; `npm audit --audit-level=moderate` reported `0 vulnerabilities`.
+- Follow-up item 8: `docs/RELEASE_NOTES.md` added with the session-invalidation notice.
