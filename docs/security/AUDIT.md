@@ -41,7 +41,7 @@ Statuses below describe the current follow-up pass only. Each item is committed 
 | 6 | Refresh/logout origin checks and rotated-token reuse revocation | Fixed (targeted tests pass; frontend build passes) | See below. |
 | 7 | CI, Docker, ruff, SECURITY.md, .env.example | Fixed (configs validated locally; remote CI not run) | See below. |
 | 8 | Release notes for session invalidation | Fixed (docs added) | See below. |
-| 9 | Final full suite | Pending | — |
+| 9 | Final full suite | Fixed (full suite passed) | See below. |
 
 ### Item 1 — upload authorization
 
@@ -80,6 +80,10 @@ Remote GitHub Actions was **not** executed because nothing was pushed. Local val
 ### Item 8 — release notes
 
 Added `docs/RELEASE_NOTES.md` with an explicit deployment notice: all existing sessions are invalidated on deploy because refresh tokens now require a `jti` claim and a matching `UserSession` row, so users must sign in again. The same operational note is included in `SECURITY.md`.
+
+### Item 9 — final full suite
+
+One final backend-suite run was executed on the completed hardening tree with `INSTALLED_APPS=hrms,crm,project_management` and `ENVIRONMENT=test`: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25` — **245 passed, 0 failed, 307 warnings in 207.29s (0:03:27)**. Log: `C:\Users\prati\AppData\Local\Temp\opencode\full_suite_hardening.log`. The shell wrapper reports exit code 1 because PowerShell's `*>` stream redirect writes native stderr as error records; the pytest summary line records the pass. This is the only full-suite run for this follow-up pass; earlier item validations were targeted only.
 
 ## Task 8 — auth surface review (report before fixes)
 
@@ -146,3 +150,4 @@ These are explicit, open gaps. None is claimed as fixed or validated:
 - Follow-up item 6: `pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25 tests/test_auth_hardening.py tests/test_auth.py tests/test_auth_limits.py` — **33 passed** (`C:\Users\prati\AppData\Local\Temp\opencode\item6_csrf.log`); `npm run build` succeeded (`C:\Users\prati\AppData\Local\Temp\opencode\item6_frontend_build.log`).
 - Follow-up item 7 local config validation: `docker compose config --quiet` passed; `yaml.safe_load` parsed `.github/workflows/ci.yml` and `docker-compose.yml`; `ruff check .` passed; `pip-audit -r requirements.txt --ignore-vuln PYSEC-2026-1325 --ignore-vuln PYSEC-2026-4298` reported `No known vulnerabilities found, 3 ignored`; `npm audit --audit-level=moderate` reported `0 vulnerabilities`.
 - Follow-up item 8: `docs/RELEASE_NOTES.md` added with the session-invalidation notice.
+- Follow-up item 9 (final, run once): `INSTALLED_APPS=hrms,crm,project_management ENVIRONMENT=test pytest -q --tb=short -p no:cacheprovider --timeout=60 --durations=25` — **245 passed, 0 failed, 307 warnings in 207.29s (0:03:27)**. Log: `C:\Users\prati\AppData\Local\Temp\opencode\full_suite_hardening.log`.
