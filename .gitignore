@@ -27,6 +27,7 @@ frontend/.env.local
 
 # Logs and local files
 *.log
+*.bundle
 *.swp
 *.swo
 .DS_Store
