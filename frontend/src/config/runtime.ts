@@ -1,6 +1,5 @@
 type RuntimeConfig = {
   apiBaseUrl?: string;
-  uploadsBaseUrl?: string;
 };
 
 declare global {
@@ -22,15 +21,4 @@ export function getApiBaseUrl(): string {
     cleanUrl(import.meta.env.VITE_API_URL) ||
     "/api/v1"
   );
-}
-
-export function getUploadsBaseUrl(): string {
-  const configuredUploads = cleanUrl(window.__AI_HRMS_CONFIG__?.uploadsBaseUrl);
-  if (configuredUploads) return configuredUploads;
-
-  const apiBaseUrl = getApiBaseUrl();
-  if (apiBaseUrl.startsWith("http")) {
-    return apiBaseUrl.replace(/\/api\/v\d+$/, "");
-  }
-  return "";
 }

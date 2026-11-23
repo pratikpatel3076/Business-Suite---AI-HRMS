@@ -41,10 +41,10 @@ Run the backend API behind HTTPS and route all API traffic under:
 https://api.yourdomain.com/api/v1
 ```
 
-Uploads are served from:
+Uploaded files are served only through authenticated API routes:
 
 ```text
-https://api.yourdomain.com/uploads
+https://api.yourdomain.com/api/v1/uploads
 ```
 
 ## Background Workers
@@ -82,7 +82,6 @@ For split frontend/backend servers:
 ```js
 window.__AI_HRMS_CONFIG__ = {
   apiBaseUrl: "https://api.yourdomain.com/api/v1",
-  uploadsBaseUrl: "https://api.yourdomain.com",
 };
 ```
 
@@ -91,7 +90,6 @@ For same-origin deployments with a reverse proxy:
 ```js
 window.__AI_HRMS_CONFIG__ = {
   apiBaseUrl: "",
-  uploadsBaseUrl: "",
 };
 ```
 
@@ -99,7 +97,6 @@ In same-origin mode, proxy these paths from the frontend domain to the backend:
 
 ```text
 /api/*     -> backend server
-/uploads/* -> backend server
 ```
 
 ## Local Development

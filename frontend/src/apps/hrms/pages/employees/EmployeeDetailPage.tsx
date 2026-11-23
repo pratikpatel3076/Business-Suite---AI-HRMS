@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AskAiButton from "@/components/ai-agents/AskAiButton";
 import { employeeApi } from "@/services/api";
-import { assetUrl, formatDate, getInitials, statusColor } from "@/lib/utils";
+import { formatDate, getInitials, statusColor } from "@/lib/utils";
+import { useAssetUrl } from "@/lib/secureAssetUrl";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,6 +93,7 @@ export default function EmployeeDetailPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const qc = useQueryClient();
+  const assetUrl = useAssetUrl();
   const [activeTab, setActiveTab] = useState("personal");
   const [editForm, setEditForm] = useState<Record<string, any>>({});
   const [educationForm, setEducationForm] = useState<Record<string, any>>({});

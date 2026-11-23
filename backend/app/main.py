@@ -4,7 +4,6 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -115,10 +114,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Mount static files for uploaded content
-if os.path.exists(settings.UPLOAD_DIR):
-    app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
-
+# Uploaded files are served only by the authenticated /api/v1/uploads router.
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 

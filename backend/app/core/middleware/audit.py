@@ -1,15 +1,18 @@
 import json
 import time
 from typing import Callable, Optional
+from urllib.parse import parse_qsl, urlencode
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
+
+from app.core.config import settings
 
 
 class AuditLogMiddleware(BaseHTTPMiddleware):
     """Logs API requests to the audit_logs table, including failures."""
 
-    SKIP_PREFIXES = ("/uploads",)
+    SKIP_PREFIXES = (f"{settings.API_V1_STR}/uploads",)
     SKIP_ENDPOINTS = {"/health"}
 
     def __init__(self, app: ASGIApp):
@@ -86,7 +89,13 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
     def _description(self, request: Request, error: Optional[Exception]) -> Optional[str]:
         parts = []
         if request.url.query:
-            parts.append(f"query={request.url.query}")
+            # Asset requests carry a bearer token in the query string because
+            # browsers cannot set headers on <img>/<a> requests. Never persist it.
+            redacted = [
+                (key, "REDACTED" if key.lower() in {"token", "access_token"} else value)
+                for key, value in parse_qsl(request.url.query, keep_blank_values=True)
+            ]
+            parts.append(f"query={urlencode(redacted)}")
         if error:
             parts.append(f"error={type(error).__name__}: {str(error)[:1000]}")
         return " | ".join(parts) if parts else None

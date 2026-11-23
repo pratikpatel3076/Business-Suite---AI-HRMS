@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { companyApi, documentsApi, employeeApi } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
-import { assetUrl, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import { useAssetUrl } from "@/lib/secureAssetUrl";
 import { useAuthStore } from "@/store/authStore";
 import { getRoleKey } from "@/lib/roles";
 
@@ -55,6 +56,7 @@ function apiError(error: unknown) {
 
 export default function DocumentsPage() {
   const qc = useQueryClient();
+  const assetUrl = useAssetUrl();
   const { user } = useAuthStore();
   const roleKey = getRoleKey(user?.role, user?.is_superuser);
   const canChooseEmployee = ["admin", "hr"].includes(roleKey);

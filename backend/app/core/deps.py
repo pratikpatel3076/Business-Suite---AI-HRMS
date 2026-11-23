@@ -1,5 +1,5 @@
 from typing import Generator, Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
@@ -17,13 +17,9 @@ def get_db() -> Generator:
         db.close()
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
-    if credentials is None:
+def _user_from_access_token(token: str | None, db: Session) -> User:
+    if not token:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated")
-    token = credentials.credentials
     payload = verify_access_token(token)
     if not payload:
         raise HTTPException(
@@ -41,6 +37,28 @@ def get_current_user(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user account")
     return user
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    return _user_from_access_token(credentials.credentials if credentials else None, db)
+
+
+def get_current_user_for_asset(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    """Authenticate asset downloads, including native <img>/<a> requests.
+
+    Browsers cannot attach Authorization headers to image or link requests, so
+    this dependency alone accepts a short-lived access token in the `token`
+    query parameter. It is intentionally scoped to asset routes only.
+    """
+    token = credentials.credentials if credentials else request.query_params.get("token")
+    return _user_from_access_token(token, db)
 
 
 def get_current_active_superuser(current_user: User = Depends(get_current_user)) -> User:

@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { employeeApi, leaveApi, reportsApi } from "@/services/api";
 import { usePageTitle } from "@/hooks/use-page-title";
-import { assetUrl, formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { useAssetUrl } from "@/lib/secureAssetUrl";
 
 export default function ESSPortalPage() {
   usePageTitle("ESS Portal");
+  const assetUrl = useAssetUrl();
   const completeness = useQuery({ queryKey: ["profile-completeness"], queryFn: () => employeeApi.profileCompleteness().then((r) => r.data), retry: false });
   const summary = useQuery({ queryKey: ["ess-summary"], queryFn: () => reportsApi.essSummary().then((r) => r.data), retry: false });
   const leaveBalance = useQuery({ queryKey: ["ess-leave-balance"], queryFn: () => leaveApi.balance(new Date().getFullYear()).then((r) => r.data), retry: false });
