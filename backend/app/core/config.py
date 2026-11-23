@@ -6,6 +6,13 @@ import secrets
 from urllib.parse import quote_plus
 
 
+PLACEHOLDER_SECRETS = {
+    "your-256-bit-secret-key-here-change-in-production",
+    "your-refresh-secret-key-here-change-in-production",
+    "your-encryption-key-here-change-in-production",
+}
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=True)
 
@@ -17,11 +24,15 @@ class Settings(BaseSettings):
 
     # Data seeding (development/test only; production must use scripts/create_admin.py)
     SEED_DEMO_DATA: bool = False
-    # Security
-    SECRET_KEY: str = secrets.token_urlsafe(48)
+
+    # Security. These are required in production; development/test get a
+    # per-process ephemeral value so the app can still boot locally.
+    SECRET_KEY: Optional[str] = None
     SECRET_KEY_PREVIOUS: Optional[str] = None
-    REFRESH_SECRET_KEY: str = secrets.token_urlsafe(48)
+    REFRESH_SECRET_KEY: Optional[str] = None
     REFRESH_SECRET_KEY_PREVIOUS: Optional[str] = None
+    ENCRYPTION_KEY: Optional[str] = None
+    ENCRYPTION_KEY_PREVIOUS: Optional[str] = None
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -132,9 +143,33 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def validate_production_cors(self):
-        if self.ENVIRONMENT.lower() == "production" and "*" in self.BACKEND_CORS_ORIGINS:
+    def validate_production_security(self):
+        production = self.ENVIRONMENT.lower() == "production"
+        if production and "*" in self.BACKEND_CORS_ORIGINS:
             raise ValueError("BACKEND_CORS_ORIGINS must list explicit origins when ENVIRONMENT=production")
+
+        required_secrets = {
+            "SECRET_KEY": self.SECRET_KEY,
+            "REFRESH_SECRET_KEY": self.REFRESH_SECRET_KEY,
+            "ENCRYPTION_KEY": self.ENCRYPTION_KEY,
+        }
+        if production:
+            for name, value in required_secrets.items():
+                if not value:
+                    raise ValueError(f"{name} must be set when ENVIRONMENT=production")
+                if len(value) < 32:
+                    raise ValueError(f"{name} must be at least 32 characters")
+                if value in PLACEHOLDER_SECRETS:
+                    raise ValueError(f"{name} is still set to the .env.example placeholder")
+            if self.SECRET_KEY == self.REFRESH_SECRET_KEY:
+                raise ValueError("SECRET_KEY and REFRESH_SECRET_KEY must be different")
+            if self.ENCRYPTION_KEY in {self.SECRET_KEY, self.REFRESH_SECRET_KEY}:
+                raise ValueError("ENCRYPTION_KEY must be distinct from the JWT signing keys")
+
+        # Non-production environments can boot without explicit secrets.
+        self.SECRET_KEY = self.SECRET_KEY or secrets.token_urlsafe(48)
+        self.REFRESH_SECRET_KEY = self.REFRESH_SECRET_KEY or secrets.token_urlsafe(48)
+        self.ENCRYPTION_KEY = self.ENCRYPTION_KEY or secrets.token_urlsafe(48)
         return self
 
     # Rate limiting
@@ -153,5 +188,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
 def demo_seeding_enabled() -> bool:
+    """Demo data is strictly opt-in and never seeded in production."""
     return settings.ENVIRONMENT.lower() != "production" and settings.SEED_DEMO_DATA

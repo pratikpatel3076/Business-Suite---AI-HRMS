@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import html
-import base64
 import hashlib
 import hmac
 import ipaddress
@@ -19,7 +18,6 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
@@ -69,6 +67,7 @@ from app.apps.crm.models import (
     CRMWebhookDelivery,
 )
 from app.core.config import settings
+from app.core.encryption import decrypt_secret, encrypt_secret
 from app.core.deps import RequirePermission, get_db
 from app.models.company import Branch, Company
 from app.models.employee import Employee
@@ -660,21 +659,12 @@ def _message_provider(channel: str) -> CRMMessageProvider:
     return ConfiguredCRMMessageProvider(provider_name, configured)
 
 
-def _calendar_fernet() -> Fernet:
-    digest = hashlib.sha256(settings.SECRET_KEY.encode("utf-8")).digest()
-    return Fernet(base64.urlsafe_b64encode(digest))
-
-
 def _encrypt_calendar_token(value: str | None) -> str | None:
-    if not value:
-        return None
-    return _calendar_fernet().encrypt(value.encode("utf-8")).decode("utf-8")
+    return encrypt_secret(value)
 
 
 def _decrypt_calendar_token(value: str | None) -> str | None:
-    if not value:
-        return None
-    return _calendar_fernet().decrypt(value.encode("utf-8")).decode("utf-8")
+    return decrypt_secret(value)
 
 
 def _normalize_calendar_provider(provider: str | None) -> str:

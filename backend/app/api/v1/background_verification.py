@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.deps import RequirePermission, get_db
+from app.core.encryption import decrypt_secret, encrypt_secret
 from app.models.background_verification import (
     BackgroundVerificationCheck,
     BackgroundVerificationConnectorEvent,
@@ -26,9 +27,20 @@ from app.schemas.background_verification import (
 router = APIRouter(prefix="/background-verification", tags=["Background Verification"])
 
 
+def _encrypt_webhook_secret(value: str | None) -> str | None:
+    return encrypt_secret(value)
+
+
+def _decrypt_webhook_secret(value: str | None) -> str | None:
+    return decrypt_secret(value)
+
+
 @router.post("/vendors", response_model=BackgroundVerificationVendorSchema, status_code=201)
 def create_vendor(data: BackgroundVerificationVendorCreate, db: Session = Depends(get_db), current_user: User = Depends(RequirePermission("recruitment_manage"))):
-    vendor = BackgroundVerificationVendor(**data.model_dump())
+    payload = data.model_dump()
+    if payload.get("webhook_secret_ref"):
+        payload["webhook_secret_ref"] = _encrypt_webhook_secret(payload["webhook_secret_ref"])
+    vendor = BackgroundVerificationVendor(**payload)
     db.add(vendor)
     db.commit()
     db.refresh(vendor)
