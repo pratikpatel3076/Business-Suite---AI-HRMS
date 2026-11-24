@@ -5227,7 +5227,7 @@ def enrichment_history(
 def module_info() -> dict[str, Any]:
     return {
         "key": "crm",
-        "name": "VyaparaCRM",
+        "name": "Gemeinsam CRM",
         "status": "installed",
         "modules": sorted(key for key in RESOURCES if key not in {"accounts", "opportunities", "products-services", "call-logs", "email-logs", "users"}),
     }

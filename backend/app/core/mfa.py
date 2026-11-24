@@ -6,7 +6,7 @@ import pyotp
 import qrcode
 
 
-APP_NAME = "Business Suite"
+APP_NAME = "Gemeinsam"
 
 
 def generate_totp_secret() -> str:

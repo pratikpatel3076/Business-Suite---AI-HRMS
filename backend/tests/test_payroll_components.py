@@ -33,8 +33,8 @@ def _seed_attendance_for_weekdays(db, employee_id: int, month: int, year: int):
 
 def test_payroll_run_persists_component_lines_and_rich_payslip(client, db):
     init_db(db)
-    admin_headers = _login(client, "admin@aihrms.com", "Admin@123456")
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
+    admin_headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
 
     db.add(EmployeeSalary(

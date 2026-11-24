@@ -37,7 +37,7 @@ def _set_cookie_header(response) -> str:
     return " ".join(values)
 
 
-def _login(client, email: str = "admin@aihrms.com", password: str = "Admin@123456"):
+def _login(client, email: str = "admin@gemeinsam.example", password: str = "Admin@123456"):
     return client.post("/api/v1/auth/login", json={"email": email, "password": password})
 
 
@@ -63,7 +63,7 @@ def test_token_without_exp_is_rejected():
 
 def test_mfa_token_cannot_be_used_as_access_token(db):
     init_db(db)
-    user = db.query(User).filter(User.email == "admin@aihrms.com").first()
+    user = db.query(User).filter(User.email == "admin@gemeinsam.example").first()
     assert user is not None
 
     mfa_token = _create_mfa_token(user)
@@ -230,7 +230,7 @@ def test_rotated_refresh_replay_revokes_every_user_session(client, db):
 
     # Age the rotated session beyond the grace window so a replay is treated
     # as theft and revokes every active session.
-    user = db.query(User).filter(User.email == "admin@aihrms.com").first()
+    user = db.query(User).filter(User.email == "admin@gemeinsam.example").first()
     assert user is not None
     rotated = db.query(UserSession).filter(
         UserSession.user_id == user.id,
@@ -254,7 +254,7 @@ def test_rotated_refresh_replay_revokes_every_user_session(client, db):
     second_refresh = client.post("/api/v1/auth/refresh", json={}, headers=_cookie_auth_headers())
     assert second_refresh.status_code == status.HTTP_401_UNAUTHORIZED
 
-    user = db.query(User).filter(User.email == "admin@aihrms.com").first()
+    user = db.query(User).filter(User.email == "admin@gemeinsam.example").first()
     assert user is not None
     active = db.query(UserSession).filter(
         UserSession.user_id == user.id,
@@ -277,7 +277,7 @@ def test_rotated_refresh_replay_within_grace_keeps_sessions(client, db):
     second = second_login.cookies.get(REFRESH_COOKIE_NAME)
     assert second and second != original
 
-    user = db.query(User).filter(User.email == "admin@aihrms.com").first()
+    user = db.query(User).filter(User.email == "admin@gemeinsam.example").first()
     assert user is not None
     rotated = db.query(UserSession).filter(
         UserSession.user_id == user.id,

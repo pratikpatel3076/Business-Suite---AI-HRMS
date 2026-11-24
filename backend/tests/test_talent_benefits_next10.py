@@ -10,8 +10,8 @@ def _login(client, email: str, password: str) -> dict[str, str]:
 
 def test_okr_360_competency_and_compensation_foundations(client, db):
     init_db(db)
-    admin = _login(client, "admin@aihrms.com", "Admin@123456")
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
+    admin = _login(client, "admin@gemeinsam.example", "Admin@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
     manager = db.query(Employee).filter(Employee.employee_id == "DEMO-MGR-001").first()
 
@@ -119,7 +119,7 @@ def test_okr_360_competency_and_compensation_foundations(client, db):
 
 def test_benefit_claims_and_esop_vesting_foundations(client, db):
     init_db(db)
-    admin = _login(client, "admin@aihrms.com", "Admin@123456")
+    admin = _login(client, "admin@gemeinsam.example", "Admin@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
 
     plan = client.post("/api/v1/benefits/plans", json={

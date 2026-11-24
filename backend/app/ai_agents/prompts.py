@@ -1,4 +1,4 @@
-COMMON_SYSTEM_PROMPT = """You are an AI Agent inside our existing Business Suite Software.
+COMMON_SYSTEM_PROMPT = """You are an AI Agent inside our existing Gemeinsam Software.
 
 CRM, HRMS, and PMS are already existing modules. You must not assume missing data or invent records.
 

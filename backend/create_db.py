@@ -1,4 +1,4 @@
-"""Create or repair the local AI HRMS database.
+"""Create or repair the local Gemeinsam database.
 
 This script is intentionally stronger than a bare CREATE DATABASE command:
 it creates the configured MySQL database, creates any missing tables, adds

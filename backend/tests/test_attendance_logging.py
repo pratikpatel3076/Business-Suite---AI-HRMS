@@ -13,7 +13,7 @@ def _login(client, email, password):
 
 def test_attendance_checkin_handles_existing_partial_record(client, db):
     init_db(db)
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
     db.add(Attendance(
         employee_id=employee.id,
@@ -40,7 +40,7 @@ def test_attendance_checkin_handles_existing_partial_record(client, db):
 
 def test_admin_can_view_and_analyze_audit_logs(client, db):
     init_db(db)
-    admin_headers = _login(client, "admin@aihrms.com", "Admin@123456")
+    admin_headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
     db.add_all([
         AuditLog(method="POST", endpoint="/api/v1/attendance/check-in", status_code=500, duration_ms=120, action="ERROR", description="error=boom"),
         AuditLog(method="GET", endpoint="/api/v1/attendance/today", status_code=200, duration_ms=20, action="GET"),

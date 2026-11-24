@@ -15,7 +15,7 @@ def _login(client, email: str, password: str) -> dict[str, str]:
 
 def test_payroll_pdf_exports_and_formula_preview(client, db):
     init_db(db)
-    headers = _login(client, "admin@aihrms.com", "Admin@123456")
+    headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
     run = PayrollRun(month=5, year=2026, status="Completed", total_gross=Decimal("50000"), total_deductions=Decimal("5000"), total_net=Decimal("45000"))
     db.add(run)
@@ -44,8 +44,8 @@ def test_payroll_pdf_exports_and_formula_preview(client, db):
 
 def test_attendance_workflow_recruitment_lms_engagement_and_utilization(client, db):
     init_db(db)
-    admin = _login(client, "admin@aihrms.com", "Admin@123456")
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
+    admin = _login(client, "admin@gemeinsam.example", "Admin@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
 
     punch = client.post(

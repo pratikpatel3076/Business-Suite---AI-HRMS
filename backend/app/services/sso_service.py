@@ -65,7 +65,7 @@ async def exchange_oidc_code(
 
 
 def extract_user_attributes(userinfo: dict, provider: SSOProvider) -> dict:
-    """Map IdP claims to AI HRMS user fields."""
+    """Map IdP claims to Gemeinsam user fields."""
     return {
         "email": userinfo.get(provider.attr_email or "email"),
         "first_name": userinfo.get(provider.attr_first_name or "given_name", ""),

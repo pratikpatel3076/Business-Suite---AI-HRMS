@@ -3,7 +3,7 @@ from app.models.employee import Employee
 
 
 def _login(client):
-    response = client.post("/api/v1/auth/login", json={"email": "admin@aihrms.com", "password": "Admin@123456"})
+    response = client.post("/api/v1/auth/login", json={"email": "admin@gemeinsam.example", "password": "Admin@123456"})
     assert response.status_code == 200
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 

@@ -26,7 +26,7 @@ class _CeleryFallback:
 
 celery_app = (
     Celery(
-        "ai_hrms",
+        "gemeinsam",
         broker=settings.CELERY_BROKER_URL or settings.REDIS_URL,
         backend=settings.CELERY_RESULT_BACKEND or settings.REDIS_URL,
     )

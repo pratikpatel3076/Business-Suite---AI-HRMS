@@ -14,7 +14,7 @@ def _login(client, email: str, password: str) -> dict[str, str]:
 
 def test_core_concepts_foundations_work(client, db):
     init_db(db)
-    admin = _login(client, "admin@aihrms.com", "Admin@123456")
+    admin = _login(client, "admin@gemeinsam.example", "Admin@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
     company = db.query(Company).first()
     branch = db.query(Branch).first()
@@ -108,7 +108,7 @@ def test_core_concepts_foundations_work(client, db):
     db.refresh(employee)
     assert employee.position_id == position.json()["id"]
 
-    user = db.query(User).filter(User.email == "employee@aihrms.com").first()
+    user = db.query(User).filter(User.email == "employee@gemeinsam.example").first()
     session = client.post("/api/v1/auth/sessions", json={
         "user_id": user.id,
         "session_token_hash": "hash-demo",

@@ -2,7 +2,7 @@ from app.db.init_db import init_db
 from app.models.user import User
 
 
-def _login(client, email="admin@aihrms.com", password="Admin@123456"):
+def _login(client, email="admin@gemeinsam.example", password="Admin@123456"):
     response = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert response.status_code == 200
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
@@ -11,7 +11,7 @@ def _login(client, email="admin@aihrms.com", password="Admin@123456"):
 def test_workflow_conditions_escalations_and_reminders(client, db):
     init_db(db)
     admin_headers = _login(client)
-    hr_user = db.query(User).filter(User.email == "hr@aihrms.com").first()
+    hr_user = db.query(User).filter(User.email == "hr@gemeinsam.example").first()
 
     definition = client.post(
         "/api/v1/workflow-engine/definitions",
@@ -76,7 +76,7 @@ def test_workflow_conditions_escalations_and_reminders(client, db):
     assert escalated.status_code == 200
     assert escalated.json()[0]["escalated_to_user_id"] == hr_user.id
 
-    hr_headers = _login(client, "hr@aihrms.com", "HR@123456")
+    hr_headers = _login(client, "hr@gemeinsam.example", "HR@123456")
     first_tasks = client.get("/api/v1/workflow-engine/tasks", headers=hr_headers)
     assert first_tasks.status_code == 200
     assert any(item["instance_id"] == instance.json()["id"] for item in first_tasks.json())
