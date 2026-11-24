@@ -2,6 +2,10 @@
 
 Gemeinsam is a modular ERP platform for HRMS, Project Management, CRM, and future business apps. The current HRMS app combines core HR, employee self-service, payroll, attendance, leave, documents, compliance, talent, analytics, and AI-assisted workflows in one platform.
 
+## Naming
+
+Gemeinsam was previously known as AI HRMS, Business Suite, KaryaFlow, and Vyapara. Older links, bookmarks, and search results may still reference those former names.
+
 ## Highlights
 
 - Role-based access for Admin, HR, Manager, CEO, and Employee users
