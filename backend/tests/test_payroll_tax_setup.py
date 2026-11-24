@@ -14,7 +14,7 @@ def _login(client, email: str, password: str) -> dict[str, str]:
 
 def test_payroll_setup_masters(client, db):
     init_db(db)
-    admin_headers = _login(client, "admin@aihrms.com", "Admin@123456")
+    admin_headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
 
     group = client.post("/api/v1/payroll/setup/pay-groups", json={
         "name": "India Monthly",
@@ -60,8 +60,8 @@ def test_payroll_setup_masters(client, db):
 
 def test_tax_declaration_proof_and_projection(client, db):
     init_db(db)
-    admin_headers = _login(client, "admin@aihrms.com", "Admin@123456")
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
+    admin_headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
     db.add(EmployeeSalary(
         employee_id=employee.id,

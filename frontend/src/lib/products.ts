@@ -13,7 +13,7 @@ export type ProductMeta = {
 export const products: Record<ProductKey, ProductMeta> = {
   hrms: {
     key: "hrms",
-    name: "AI HRMS",
+    name: "Gemeinsam HRMS",
     shortName: "HRMS",
     loginPath: "/hrms/login",
     homePath: "/hrms",
@@ -22,7 +22,7 @@ export const products: Record<ProductKey, ProductMeta> = {
   },
   crm: {
     key: "crm",
-    name: "VyaparaCRM",
+    name: "Gemeinsam CRM",
     shortName: "CRM",
     loginPath: "/crm/login",
     homePath: "/crm",
@@ -31,7 +31,7 @@ export const products: Record<ProductKey, ProductMeta> = {
   },
   project_management: {
     key: "project_management",
-    name: "KaryaFlow PMS",
+    name: "Gemeinsam PMS",
     shortName: "PMS",
     loginPath: "/pms/login",
     homePath: "/pms",

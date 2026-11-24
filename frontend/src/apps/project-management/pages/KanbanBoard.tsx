@@ -1,5 +1,5 @@
 /**
- * KaryaFlow - Kanban Board with Drag & Drop
+ * Gemeinsam PMS - Kanban Board with Drag & Drop
  * Interactive Kanban board using DnD Kit for task management
  * This is the CORE Click & Drag feature
  */

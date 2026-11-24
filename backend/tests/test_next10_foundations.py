@@ -12,7 +12,7 @@ def _login(client, email: str, password: str) -> dict[str, str]:
 
 def test_payroll_formula_tax_and_platform_foundations(client, db):
     init_db(db)
-    admin = _login(client, "admin@aihrms.com", "Admin@123456")
+    admin = _login(client, "admin@gemeinsam.example", "Admin@123456")
 
     basic = client.post("/api/v1/payroll/components", json={
         "name": "Basic", "code": "BASIC", "component_type": "Earning", "calculation_type": "Fixed", "amount": "0",
@@ -83,8 +83,8 @@ def test_payroll_formula_tax_and_platform_foundations(client, db):
 
 def test_whatsapp_biometric_and_geo_attendance_foundations(client, db):
     init_db(db)
-    admin = _login(client, "admin@aihrms.com", "Admin@123456")
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
+    admin = _login(client, "admin@gemeinsam.example", "Admin@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
     employee.phone_number = "9888888888"
     db.commit()

@@ -37,7 +37,7 @@ def _seed_payroll_record(db, employee_id: int, month: int, year: int, gross: Dec
 
 def test_payroll_variance_and_export_batches(client, db):
     init_db(db)
-    admin_headers = _login(client, "admin@aihrms.com", "Admin@123456")
+    admin_headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
 
     _seed_payroll_record(db, employee.id, 4, 2026, Decimal("50000"), Decimal("45000"))
@@ -68,8 +68,8 @@ def test_payroll_variance_and_export_batches(client, db):
 
 def test_payroll_lock_blocks_sensitive_mutations(client, db):
     init_db(db)
-    admin_headers = _login(client, "admin@aihrms.com", "Admin@123456")
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
+    admin_headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
 
     locked_run = PayrollRun(month=5, year=2026, status="Locked")
@@ -118,7 +118,7 @@ def test_payroll_lock_blocks_sensitive_mutations(client, db):
 
 def test_employee_cannot_view_other_employee_payslip(client, db):
     init_db(db)
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
     manager = db.query(Employee).filter(Employee.employee_id == "DEMO-MGR-001").first()
     _seed_payroll_record(db, manager.id, 6, 2026, Decimal("80000"), Decimal("72000"))
 

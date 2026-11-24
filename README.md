@@ -1,6 +1,10 @@
-# Business Suite
+# Gemeinsam
 
-Business Suite is a modular ERP platform for HRMS, Project Management, CRM, and future business apps. The current HRMS app combines core HR, employee self-service, payroll, attendance, leave, documents, compliance, talent, analytics, and AI-assisted workflows in one platform.
+Gemeinsam is a modular ERP platform for HRMS, Project Management, CRM, and future business apps. The current HRMS app combines core HR, employee self-service, payroll, attendance, leave, documents, compliance, talent, analytics, and AI-assisted workflows in one platform.
+
+## Naming
+
+Gemeinsam was previously known as AI HRMS, Business Suite, KaryaFlow, and Vyapara. Older links, bookmarks, and search results may still reference those former names.
 
 ## Highlights
 
@@ -84,7 +88,7 @@ uvicorn app.main:app --reload --port 8000
 Create a backend `.env` when needed:
 
 ```env
-DATABASE_URL=mysql+pymysql://user:password@host:3306/aihrms
+DATABASE_URL=mysql+pymysql://user:password@host:3306/ai_hrms
 BACKEND_CORS_ORIGINS=http://localhost:5173,http://localhost:5174
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=

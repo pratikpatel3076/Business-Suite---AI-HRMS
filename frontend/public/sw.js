@@ -1,4 +1,4 @@
-const CACHE_VERSION = "ai-hrms-shell-v2";
+const CACHE_VERSION = "gemeinsam-shell-v2";
 const SHELL_ASSETS = ["/", "/app-config.js", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

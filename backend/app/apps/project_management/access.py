@@ -1,4 +1,4 @@
-"""Access helpers for KaryaFlow project permissions."""
+"""Access helpers for Gemeinsam project permissions."""
 from __future__ import annotations
 
 from fastapi import HTTPException

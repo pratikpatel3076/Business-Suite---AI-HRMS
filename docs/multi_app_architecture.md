@@ -3,20 +3,20 @@
 The suite now supports deployable product modules through environment-driven
 registries.
 
-Umbrella product name: **Business Suite**.
+Umbrella product name: **Gemeinsam**.
 
 Apps:
 
 - HRMS
-- KaryaFlow: Project Management
-- VyaparaCRM: CRM
+- Gemeinsam PMS: Project Management
+- Gemeinsam CRM: CRM
 
 ## App Separation Rules
 
 The three product apps must stay clearly separated. Only true platform services
 belong in common code.
 
-| Layer | Common platform | HRMS | KaryaFlow / PMS | VyaparaCRM |
+| Layer | Common platform | HRMS | Gemeinsam PMS / PMS | Gemeinsam CRM |
 | --- | --- | --- | --- | --- |
 | Primary owner | Suite shell | HR and employee operations | Delivery/project operations | Sales/customer operations |
 | Core records | Users, organizations, audit logs, sessions, workflow engine, notification events, integration events | Employees, payroll, attendance, leave, recruitment, onboarding, performance, benefits | Clients, projects, members, boards, tasks, sprints, milestones, dependencies, time logs, client approvals | Leads, contacts, companies, deals, quotations, campaigns, activities, support tickets |
@@ -72,8 +72,8 @@ Windows, and Linux deployments.
 
 - Common/shared tables: `common_<name>`
 - HRMS tables: `hrms_<name>`
-- Project Management/KaryaFlow tables: `pms_<name>`
-- CRM/VyaparaCRM tables: `crm_<name>`
+- Project Management/Gemeinsam PMS tables: `pms_<name>`
+- CRM/Gemeinsam CRM tables: `crm_<name>`
 
 Existing HRMS tables still use their original names. New app tables should use
 the prefix rule immediately. Renaming current HRMS/common tables should be done

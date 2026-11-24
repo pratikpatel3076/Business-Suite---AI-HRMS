@@ -1,6 +1,6 @@
 {
-  "name": "Business Suite",
-  "short_name": "Business Suite",
+  "name": "Gemeinsam",
+  "short_name": "Gemeinsam",
   "description": "Employee self-service, HR workflows, payroll, and attendance.",
   "start_url": "/",
   "display": "standalone",

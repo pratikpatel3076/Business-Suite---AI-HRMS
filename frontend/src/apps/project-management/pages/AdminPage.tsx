@@ -17,7 +17,7 @@ export default function AdminPage() {
     <div className="space-y-6">
       <div>
         <h1 className="page-title">Admin</h1>
-        <p className="page-description">Administrative controls for KaryaFlow configuration and governance.</p>
+        <p className="page-description">Administrative controls for Gemeinsam PMS configuration and governance.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {adminItems.map((item) => (

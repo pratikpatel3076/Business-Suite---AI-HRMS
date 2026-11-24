@@ -97,7 +97,7 @@ def test_employee_can_upload_and_list_own_certificate_only(client, db):
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
     login = client.post(
         "/api/v1/auth/login",
-        json={"email": "employee@aihrms.com", "password": "Employee@123456"},
+        json={"email": "employee@gemeinsam.example", "password": "Employee@123456"},
     )
     assert login.status_code == 200
     assert login.json()["employee_id"] == employee.id

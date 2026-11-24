@@ -1,4 +1,4 @@
-"""Project Management (KaryaFlow) API routes."""
+"""Project Management (Gemeinsam PMS) API routes."""
 import hashlib
 import hmac
 import json
@@ -1569,7 +1569,7 @@ def _reorder_tasks_in_scope(db: Session, project_id: int, task_ids: list[int], s
 def module_info():
     return {
         "key": "project_management",
-        "name": "KaryaFlow",
+        "name": "Gemeinsam PMS",
         "status": "installed",
         "description": "Complete project management with Kanban, Gantt, milestones, and collaboration",
         "modules": [

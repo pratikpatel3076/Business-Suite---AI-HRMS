@@ -1,4 +1,4 @@
-name: ai-hrms
+name: gemeinsam
 
 # Local development stack only. Production should supply real secrets and run
 # Alembic as an explicit deployment step (see docs/security/SECURITY.md).

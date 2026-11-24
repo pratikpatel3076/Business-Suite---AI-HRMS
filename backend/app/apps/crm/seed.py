@@ -39,7 +39,7 @@ def seed_crm_demo_data(db: Session, organization_id: int = 1) -> None:
     if db.query(CRMLead).filter(CRMLead.organization_id == organization_id).first():
         return
 
-    admin = db.query(User).filter(User.email == "admin@vyaparacrm.com").first() or db.query(User).first()
+    admin = db.query(User).filter(User.email == "admin@gemeinsam.example").first() or db.query(User).first()
     admin_id = admin.id if admin else None
 
     territory = CRMTerritory(
@@ -70,9 +70,9 @@ def seed_crm_demo_data(db: Session, organization_id: int = 1) -> None:
     db.flush()
 
     owners = [
-        CRMOwner(organization_id=organization_id, user_id=admin_id, team_id=team.id, territory_id=territory.id, full_name="Ananya Rao", email="ananya@vyaparacrm.com", role="Sales Manager", status="Active"),
-        CRMOwner(organization_id=organization_id, team_id=team.id, territory_id=territory.id, full_name="Karan Shah", email="karan@vyaparacrm.com", role="Sales Executive", status="Active"),
-        CRMOwner(organization_id=organization_id, team_id=team.id, territory_id=territory.id, full_name="Meera Iyer", email="meera@vyaparacrm.com", role="Sales Executive", status="Active"),
+        CRMOwner(organization_id=organization_id, user_id=admin_id, team_id=team.id, territory_id=territory.id, full_name="Ananya Rao", email="ananya@gemeinsam.example", role="Sales Manager", status="Active"),
+        CRMOwner(organization_id=organization_id, team_id=team.id, territory_id=territory.id, full_name="Karan Shah", email="karan@gemeinsam.example", role="Sales Executive", status="Active"),
+        CRMOwner(organization_id=organization_id, team_id=team.id, territory_id=territory.id, full_name="Meera Iyer", email="meera@gemeinsam.example", role="Sales Executive", status="Active"),
     ]
     for owner in owners:
         owner.created_by_user_id = admin_id

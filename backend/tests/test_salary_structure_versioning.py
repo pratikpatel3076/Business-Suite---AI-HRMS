@@ -12,7 +12,7 @@ def _login(client, email: str, password: str) -> dict[str, str]:
 
 def test_salary_component_grouping_structure_versioning_and_preview(client, db):
     init_db(db)
-    headers = _login(client, "admin@aihrms.com", "Admin@123456")
+    headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
 
     component = client.post(
         "/api/v1/payroll/components",

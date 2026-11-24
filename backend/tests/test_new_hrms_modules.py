@@ -18,7 +18,7 @@ def _login(client, email, password):
 
 def test_whatsapp_ess_benefits_statutory_and_bgv_modules_work(client, db):
     init_db(db)
-    admin = _login(client, "admin@aihrms.com", "Admin@123456")
+    admin = _login(client, "admin@gemeinsam.example", "Admin@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
     employee.phone_number = "9999999999"
     leave_type = db.query(LeaveType).filter(LeaveType.code == "CL").first()
@@ -47,7 +47,7 @@ def test_whatsapp_ess_benefits_statutory_and_bgv_modules_work(client, db):
     legal_entity = client.post(
         "/api/v1/statutory-compliance/legal-entities",
         json={
-            "legal_name": "AI HRMS Private Limited",
+            "legal_name": "Gemeinsam Private Limited",
             "pan": "ABCDE1234F",
             "tan": "HYDA12345B",
             "pf_establishment_code": "APHYD1234567",

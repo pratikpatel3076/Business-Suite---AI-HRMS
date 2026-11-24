@@ -4,7 +4,7 @@ type RuntimeConfig = {
 
 declare global {
   interface Window {
-    __AI_HRMS_CONFIG__?: RuntimeConfig;
+    __GEMEINSAM_CONFIG__?: RuntimeConfig;
   }
 }
 
@@ -16,7 +16,7 @@ function cleanUrl(value?: string | null): string | undefined {
 
 export function getApiBaseUrl(): string {
   return (
-    cleanUrl(window.__AI_HRMS_CONFIG__?.apiBaseUrl) ||
+    cleanUrl(window.__GEMEINSAM_CONFIG__?.apiBaseUrl) ||
     cleanUrl(import.meta.env.VITE_API_BASE_URL) ||
     cleanUrl(import.meta.env.VITE_API_URL) ||
     "/api/v1"

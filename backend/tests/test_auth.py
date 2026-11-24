@@ -143,7 +143,7 @@ def test_seeded_role_logins_have_expected_permissions(client, db):
     init_db(db)
 
     admin_login = client.post("/api/v1/auth/login", json={
-        "email": "admin@aihrms.com",
+        "email": "admin@gemeinsam.example",
         "password": "Admin@123456",
     })
     assert admin_login.status_code == 200
@@ -151,7 +151,7 @@ def test_seeded_role_logins_have_expected_permissions(client, db):
     assert admin_login.json()["is_superuser"] is True
 
     hr_login = client.post("/api/v1/auth/login", json={
-        "email": "hr@aihrms.com",
+        "email": "hr@gemeinsam.example",
         "password": "HR@123456",
     })
     assert hr_login.status_code == 200
@@ -160,7 +160,7 @@ def test_seeded_role_logins_have_expected_permissions(client, db):
     assert client.get("/api/v1/employees/", headers=hr_headers).status_code == 200
 
     employee_login = client.post("/api/v1/auth/login", json={
-        "email": "employee@aihrms.com",
+        "email": "employee@gemeinsam.example",
         "password": "Employee@123456",
     })
     assert employee_login.status_code == 200
@@ -174,24 +174,24 @@ def test_only_admin_can_create_login_users(client, db):
     init_db(db)
 
     hr_login = client.post("/api/v1/auth/login", json={
-        "email": "hr@aihrms.com",
+        "email": "hr@gemeinsam.example",
         "password": "HR@123456",
     })
     hr_headers = {"Authorization": f"Bearer {hr_login.json()['access_token']}"}
     denied = client.post("/api/v1/auth/users", json={
-        "email": "notallowed@aihrms.com",
+        "email": "notallowed@gemeinsam.example",
         "password": "User@123456",
     }, headers=hr_headers)
     assert denied.status_code == 403
 
     admin_login = client.post("/api/v1/auth/login", json={
-        "email": "admin@aihrms.com",
+        "email": "admin@gemeinsam.example",
         "password": "Admin@123456",
     })
     admin_headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
     created = client.post("/api/v1/auth/users", json={
-        "email": "newuser@aihrms.com",
+        "email": "newuser@gemeinsam.example",
         "password": "User@123456",
     }, headers=admin_headers)
     assert created.status_code == 201
-    assert created.json()["email"] == "newuser@aihrms.com"
+    assert created.json()["email"] == "newuser@gemeinsam.example"

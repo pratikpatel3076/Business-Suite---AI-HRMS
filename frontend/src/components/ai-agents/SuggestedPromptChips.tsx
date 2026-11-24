@@ -26,7 +26,7 @@ const prompts: Record<AiModule, string[]> = {
     "Give today's business summary",
     "Show pending approvals",
     "What needs my attention today?",
-    "Search across business suite",
+    "Search across Gemeinsam",
     "Show major risks this week",
   ],
 };

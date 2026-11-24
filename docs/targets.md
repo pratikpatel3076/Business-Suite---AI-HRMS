@@ -1,4 +1,4 @@
-# AI HRMS Target Domains and Feature Catalog
+# Gemeinsam Target Domains and Feature Catalog
 
 This target catalog is based on feature patterns visible across leading HRMS/HCM suites: Workday, SAP SuccessFactors, Oracle Fusion Cloud HCM, ADP Workforce Now, UKG Pro, Rippling, BambooHR, Zoho People, Darwinbox, Keka, and HiBob.
 

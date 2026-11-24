@@ -1,2 +1,2 @@
-"""AI Agents feature layer for Business Suite."""
+"""AI Agents feature layer for Gemeinsam."""
 

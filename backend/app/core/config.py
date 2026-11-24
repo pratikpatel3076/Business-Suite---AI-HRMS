@@ -17,7 +17,7 @@ PLACEHOLDER_SECRETS = {
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=True)
 
-    PROJECT_NAME: str = "Business Suite"
+    PROJECT_NAME: str = "Gemeinsam"
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
     ENVIRONMENT: str = "production"
@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     # Email
     MAIL_USERNAME: str = ""
     MAIL_PASSWORD: str = ""
-    MAIL_FROM: str = "noreply@aihrms.com"
+    MAIL_FROM: str = "noreply@gemeinsam.example"
     MAIL_PORT: int = 587
     MAIL_SERVER: str = "smtp.gmail.com"
     MAIL_STARTTLS: bool = True

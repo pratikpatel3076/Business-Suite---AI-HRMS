@@ -291,7 +291,7 @@ def test_hr_cannot_create_employee_login_account(client, db):
 
     init_db(db)
     login = client.post("/api/v1/auth/login", json={
-        "email": "hr@aihrms.com",
+        "email": "hr@gemeinsam.example",
         "password": "HR@123456",
     })
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
@@ -300,7 +300,7 @@ def test_hr_cannot_create_employee_login_account(client, db):
         "last_name": "Blocked",
         "date_of_joining": str(date.today()),
         "create_user_account": True,
-        "user_email": "blocked.employee@aihrms.com",
+        "user_email": "blocked.employee@gemeinsam.example",
         "user_password": "Employee@123456",
     }, headers=headers)
     assert response.status_code == 403

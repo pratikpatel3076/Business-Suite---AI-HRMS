@@ -25,8 +25,8 @@ def test_employee_sensitive_fields_are_masked_for_manager_but_visible_to_hr(clie
     db.commit()
     db.refresh(employee)
 
-    manager_headers = _login(client, "manager@aihrms.com", "Manager@123456")
-    hr_headers = _login(client, "hr@aihrms.com", "HR@123456")
+    manager_headers = _login(client, "manager@gemeinsam.example", "Manager@123456")
+    hr_headers = _login(client, "hr@gemeinsam.example", "HR@123456")
 
     manager_detail = client.get(f"/api/v1/employees/{employee.id}", headers=manager_headers)
     assert manager_detail.status_code == 200

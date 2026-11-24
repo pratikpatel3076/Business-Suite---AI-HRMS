@@ -70,7 +70,7 @@ docker run \
   -e FORWARDED_ALLOW_IPS="10.0.0.0/8,172.16.0.0/12" \
   -e REDIS_URL="redis://redis:6379/0" \
   -p 8000:8000 \
-  ai-hrms-backend
+  gemeinsam-backend
 ```
 
 ## Session cookies and CSRF
@@ -121,7 +121,7 @@ app-config.js
 For split frontend/backend servers:
 
 ```js
-window.__AI_HRMS_CONFIG__ = {
+window.__GEMEINSAM_CONFIG__ = {
   apiBaseUrl: "https://api.yourdomain.com/api/v1",
 };
 ```
@@ -129,7 +129,7 @@ window.__AI_HRMS_CONFIG__ = {
 For same-origin deployments with a reverse proxy:
 
 ```js
-window.__AI_HRMS_CONFIG__ = {
+window.__GEMEINSAM_CONFIG__ = {
   apiBaseUrl: "",
 };
 ```

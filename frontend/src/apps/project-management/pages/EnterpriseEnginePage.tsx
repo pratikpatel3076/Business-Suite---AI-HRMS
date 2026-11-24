@@ -88,7 +88,7 @@ const sections = [
 export default function EnterpriseEnginePage() {
   const [activeSection, setActiveSection] = useState("plans");
   const [issues, setIssues] = useState<EnterpriseIssue[]>(() => {
-    const stored = localStorage.getItem("karyaflow-enterprise-issues");
+    const stored = localStorage.getItem("gemeinsam-enterprise-issues");
     return stored ? JSON.parse(stored) : enterpriseIssues;
   });
   const [queryText, setQueryText] = useState(defaultSavedViews[0].query);
@@ -102,7 +102,7 @@ export default function EnterpriseEnginePage() {
   const [compactMode, setCompactMode] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("karyaflow-enterprise-issues", JSON.stringify(issues));
+    localStorage.setItem("gemeinsam-enterprise-issues", JSON.stringify(issues));
   }, [issues]);
 
   useEffect(() => {
@@ -152,7 +152,7 @@ export default function EnterpriseEnginePage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "karyaflow-work-export.csv";
+    link.download = "gemeinsam-work-export.csv";
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -206,7 +206,7 @@ export default function EnterpriseEnginePage() {
               <Sparkles className="h-4 w-4" />
               PMS Enterprise Engine
             </div>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">KaryaFlow enterprise project operations</h1>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Gemeinsam PMS enterprise project operations</h1>
             <p className="mt-1 text-sm text-muted-foreground">Real planning calculations, saved views, workflow definitions, automation rules, dependency warnings, budget forecasting, timesheet approvals, and enterprise governance.</p>
           </div>
           <div className="flex flex-wrap gap-2">

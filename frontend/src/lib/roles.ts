@@ -411,13 +411,13 @@ export function getRoleNav(role?: string | null, isSuperuser = false, pathname =
   if (activeModule === "suite") {
     const suiteNav: RoleNavItem[] = [];
     if (installedApps.includes("hrms") && isHrmsRole(role, isSuperuser)) {
-      suiteNav.push({ label: "AI HRMS", icon: Building2, to: "/hrms", group: "Applications", exact: true });
+      suiteNav.push({ label: "Gemeinsam HRMS", icon: Building2, to: "/hrms", group: "Applications", exact: true });
     }
     if (installedApps.includes("crm") && isCrmRole(role)) {
-      suiteNav.push({ label: "VyaparaCRM", icon: Briefcase, to: "/crm", group: "Applications", exact: true });
+      suiteNav.push({ label: "Gemeinsam CRM", icon: Briefcase, to: "/crm", group: "Applications", exact: true });
     }
     if (installedApps.includes("project_management") && isProjectManagementRole(role)) {
-      suiteNav.push({ label: "KaryaFlow", icon: Target, to: "/pms", group: "Applications", exact: true });
+      suiteNav.push({ label: "Gemeinsam PMS", icon: Target, to: "/pms", group: "Applications", exact: true });
     }
     suiteNav.push({ label: "AI Agents", icon: Sparkles, to: "/ai-agents", group: "Applications", badge: "AI", exact: true });
     return suiteNav;

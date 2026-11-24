@@ -16,7 +16,7 @@ def _login(client, email: str, password: str) -> dict[str, str]:
 def test_manager_workflow_inbox_shows_team_approvals(client, db):
     init_db(db)
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
-    manager_headers = _login(client, "manager@aihrms.com", "Manager@123456")
+    manager_headers = _login(client, "manager@gemeinsam.example", "Manager@123456")
 
     leave_type = LeaveType(name="Workflow Leave", code="WFL", days_allowed=Decimal("5"))
     db.add(leave_type)
@@ -61,7 +61,7 @@ def test_manager_workflow_inbox_shows_team_approvals(client, db):
 def test_employee_workflow_inbox_shows_own_submissions_only(client, db):
     init_db(db)
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
 
     leave_type = LeaveType(name="My Workflow Leave", code="MWFL", days_allowed=Decimal("5"))
     db.add(leave_type)

@@ -14,8 +14,8 @@ def _login(client, email: str, password: str) -> dict[str, str]:
 
 def test_helpdesk_sla_escalation_and_knowledge_base(client, db):
     init_db(db)
-    admin_headers = _login(client, "admin@aihrms.com", "Admin@123456")
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
+    admin_headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
 
     category = client.post(
         "/api/v1/helpdesk/categories",
@@ -73,8 +73,8 @@ def test_helpdesk_sla_escalation_and_knowledge_base(client, db):
 
 def test_payroll_database_backlog_foundations(client, db):
     init_db(db)
-    admin_headers = _login(client, "admin@aihrms.com", "Admin@123456")
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
+    admin_headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
     employee = db.query(Employee).filter(Employee.employee_id == "DEMO-EMP-001").first()
 
     db.add(EmployeeSalary(

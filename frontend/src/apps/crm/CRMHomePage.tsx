@@ -37,7 +37,7 @@ export default function CRMHomePage() {
               <Building2 className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="page-title">VyaparaCRM</h1>
+              <h1 className="page-title">Gemeinsam CRM</h1>
               <p className="page-description">Leads, contacts, companies, deals, activities, quotations, campaigns, and support.</p>
             </div>
           </div>

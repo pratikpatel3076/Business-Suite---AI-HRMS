@@ -2,7 +2,7 @@ from app.db.init_db import init_db
 from app.models.employee import Employee
 
 
-def _login(client, email="admin@aihrms.com", password="Admin@123456"):
+def _login(client, email="admin@gemeinsam.example", password="Admin@123456"):
     response = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert response.status_code == 200
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
@@ -16,7 +16,7 @@ def test_payroll_setup_salary_templates_and_tax_projection_work(client, db):
 
     legal_entity = client.post(
         "/api/v1/statutory-compliance/legal-entities",
-        json={"legal_name": "AI HRMS Payroll Pvt Ltd", "pan": "ABCDE1234F", "tan": "HYDA12345B", "is_default": True},
+        json={"legal_name": "Gemeinsam Payroll Pvt Ltd", "pan": "ABCDE1234F", "tan": "HYDA12345B", "is_default": True},
         headers=headers,
     )
     assert legal_entity.status_code == 201

@@ -9,9 +9,9 @@ def _login(client, email: str, password: str) -> dict[str, str]:
 
 def test_employee_timesheet_submission_and_manager_approval(client, db):
     init_db(db)
-    admin_headers = _login(client, "admin@aihrms.com", "Admin@123456")
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
-    manager_headers = _login(client, "manager@aihrms.com", "Manager@123456")
+    admin_headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
+    manager_headers = _login(client, "manager@gemeinsam.example", "Manager@123456")
 
     project_response = client.post(
         "/api/v1/timesheets/projects",
@@ -89,9 +89,9 @@ def test_employee_timesheet_submission_and_manager_approval(client, db):
 
 def test_timesheet_entry_validation_and_role_boundaries(client, db):
     init_db(db)
-    admin_headers = _login(client, "admin@aihrms.com", "Admin@123456")
-    employee_headers = _login(client, "employee@aihrms.com", "Employee@123456")
-    hr_headers = _login(client, "hr@aihrms.com", "HR@123456")
+    admin_headers = _login(client, "admin@gemeinsam.example", "Admin@123456")
+    employee_headers = _login(client, "employee@gemeinsam.example", "Employee@123456")
+    hr_headers = _login(client, "hr@gemeinsam.example", "HR@123456")
 
     project = client.post(
         "/api/v1/timesheets/projects",

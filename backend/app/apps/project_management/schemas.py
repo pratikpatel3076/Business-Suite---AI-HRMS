@@ -1,4 +1,4 @@
-"""Pydantic schemas for Project Management (KaryaFlow) module."""
+"""Pydantic schemas for Project Management (Gemeinsam PMS) module."""
 from datetime import date, datetime
 from typing import Any, Optional, List
 from decimal import Decimal

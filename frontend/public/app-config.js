@@ -1,4 +1,4 @@
-window.__AI_HRMS_CONFIG__ = {
+window.__GEMEINSAM_CONFIG__ = {
   // Keep empty for same-origin deployments that proxy /api.
   // For split deployments, set for example:
   // apiBaseUrl: "https://api.yourdomain.com/api/v1",

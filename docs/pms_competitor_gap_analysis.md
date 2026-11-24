@@ -2,7 +2,7 @@
 
 Date: 2026-05-07
 
-This compares the current Project Management app, **KaryaFlow**, with leading market PMS/work-management tools and separates what belongs to PMS from shared platform capabilities.
+This compares the current Project Management app, **Gemeinsam PMS**, with leading market PMS/work-management tools and separates what belongs to PMS from shared platform capabilities.
 
 ## Product Boundary
 
@@ -11,7 +11,7 @@ This compares the current Project Management app, **KaryaFlow**, with leading ma
 | Common platform | Auth, users, roles, audit, logs, workflow engine, notifications, files foundation, integrations foundation, AI service layer, app registry, deployment controls | App-specific HR records, CRM sales pipeline, PMS delivery objects |
 | HRMS | Employees, payroll, attendance, leave, performance, recruitment, onboarding, statutory compliance, benefits, ESS | Project boards, client deliverables, CRM leads/deals |
 | CRM | Leads, contacts, companies, deals, quotations, campaigns, support tickets, sales activities | Payroll/employee records, sprint backlog, project time approval |
-| PMS / KaryaFlow | Clients, projects, members, boards, tasks, sprints, milestones, dependencies, files, comments, time logs, client approvals, project reporting, delivery planning | HR employment lifecycle, CRM pipeline ownership |
+| PMS / Gemeinsam PMS | Clients, projects, members, boards, tasks, sprints, milestones, dependencies, files, comments, time logs, client approvals, project reporting, delivery planning | HR employment lifecycle, CRM pipeline ownership |
 
 Shared entities should remain common only when all three apps need them. For example, `users`, `organizations`, `audit`, `notifications`, `workflow_engine`, and future `common_people/profiles` are common. `pms_tasks`, `crm_deals`, and `hrms_payroll_runs` should stay app-owned.
 
@@ -37,7 +37,7 @@ Sources checked:
 - Zoho Projects features: https://www.zoho.com/projects/features.html
 - Capterra PM software buyer trend page: https://www.capterra.com/project-management-software/
 
-## Current KaryaFlow Position
+## Current Gemeinsam PMS Position
 
 ### Database-Backed PMS Core
 
@@ -73,7 +73,7 @@ The backend has a solid operational core, but several advanced frontend experien
 
 ## Competitive Scorecard
 
-| Capability | Current KaryaFlow | Market benchmark | Gap |
+| Capability | Current Gemeinsam PMS | Market benchmark | Gap |
 | --- | --- | --- | --- |
 | Project/task CRUD | Strong foundation | All products | Low |
 | Kanban | Foundation complete | Jira, monday, ClickUp, Asana, Zoho | Low/medium: needs configurable workflows and board policies |
@@ -157,7 +157,7 @@ The backend has a solid operational core, but several advanced frontend experien
 4. Sales forecasts, revenue analytics.
 5. CRM-to-PMS handoff when a deal becomes a delivery project.
 
-### PMS / KaryaFlow - Build Next
+### PMS / Gemeinsam PMS - Build Next
 
 1. PMS permission model and project roles.
 2. Rich issue model: work types, epics, releases, components, rank, security, severity.
@@ -172,7 +172,7 @@ The backend has a solid operational core, but several advanced frontend experien
 
 ## Best Positioning
 
-KaryaFlow should not try to clone every tool at once. The strongest suite-native positioning is:
+Gemeinsam PMS should not try to clone every tool at once. The strongest suite-native positioning is:
 
 > India-first delivery management for service businesses, connecting CRM sales promises, PMS execution, client approvals, billable time, and HRMS capacity in one suite.
 

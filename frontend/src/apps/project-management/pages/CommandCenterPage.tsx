@@ -70,7 +70,7 @@ const projectTabs = [
   { label: "Apps", icon: AppWindow },
 ];
 
-const karyaflowFeatures = [
+const gemeinsamFeatures = [
   { name: "Scrum and Kanban boards", icon: Layers3, status: "Live", detail: "Drag issues by status, priority, epic, assignee, and sprint." },
   { name: "Backlog and sprint planning", icon: List, status: "Live", detail: "Rank work, estimate story points, split scope, and start or complete sprints." },
   { name: "Timeline and roadmap", icon: GitBranch, status: "Live", detail: "Plan dates, milestones, blockers, releases, and cross-project work." },
@@ -103,8 +103,8 @@ export default function CommandCenterPage() {
   const [query, setQuery] = useState("");
   const filteredFeatures = useMemo(() => {
     const value = query.trim().toLowerCase();
-    if (!value) return karyaflowFeatures;
-    return karyaflowFeatures.filter((feature) => `${feature.name} ${feature.detail} ${feature.status}`.toLowerCase().includes(value));
+    if (!value) return gemeinsamFeatures;
+    return gemeinsamFeatures.filter((feature) => `${feature.name} ${feature.detail} ${feature.status}`.toLowerCase().includes(value));
   }, [query]);
 
   return (
@@ -116,7 +116,7 @@ export default function CommandCenterPage() {
               <span className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-50 text-blue-700"><Globe2 className="h-5 w-5" /></span>
               <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Travel Company</h1>
               <span className="text-amber-500">★</span>
-              <Badge variant="outline">KaryaFlow PMS</Badge>
+              <Badge variant="outline">Gemeinsam PMS</Badge>
             </div>
             <div className="mt-3 flex gap-5 overflow-x-auto text-sm font-medium text-slate-600">
               {projectTabs.map((tab) => (
@@ -155,7 +155,7 @@ export default function CommandCenterPage() {
                   </div>
                   <h2 className="mt-6 text-xl font-semibold">Status overview</h2>
                   <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-                    View project progress, status, dependencies, goals, releases, and sprint health from one KaryaFlow command surface.
+                    View project progress, status, dependencies, goals, releases, and sprint health from one Gemeinsam PMS command surface.
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setShowGoals(true)}><Target className="h-4 w-4" />Open goals</Button>
@@ -207,7 +207,7 @@ export default function CommandCenterPage() {
             <CardContent className="p-5">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold">KaryaFlow feature coverage in PMS</h2>
+                  <h2 className="text-lg font-semibold">Gemeinsam PMS feature coverage in PMS</h2>
                   <p className="mt-1 text-sm text-muted-foreground">All major project delivery modules are exposed as PMS components, routes, and work surfaces.</p>
                 </div>
                 <div className="flex gap-2">
