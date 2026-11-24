@@ -64,7 +64,7 @@ const tabs = [
 
 export default function ProductLaunchPage() {
   const [items, setItems] = useState<LaunchItem[]>(() => {
-    const stored = localStorage.getItem("karyaflow-product-launch-items");
+    const stored = localStorage.getItem("gemeinsam-product-launch-items");
     return stored ? JSON.parse(stored) : seedItems;
   });
   const [activeTab, setActiveTab] = useState("List");
@@ -72,7 +72,7 @@ export default function ProductLaunchPage() {
   const [groupBy, setGroupBy] = useState<"Category" | "Status">("Category");
 
   useEffect(() => {
-    localStorage.setItem("karyaflow-product-launch-items", JSON.stringify(items));
+    localStorage.setItem("gemeinsam-product-launch-items", JSON.stringify(items));
   }, [items]);
 
   const filteredItems = useMemo(() => {

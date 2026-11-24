@@ -31,7 +31,7 @@ type RealtimeState = {
   setConnected: (connected: boolean) => void;
 };
 
-const CHANNEL = "karyaflow-realtime";
+const CHANNEL = "gemeinsam-realtime";
 const channel = typeof window !== "undefined" && "BroadcastChannel" in window ? new BroadcastChannel(CHANNEL) : null;
 
 function actorName(actor: PMSRealtimeEvent["actor"]) {

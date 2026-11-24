@@ -1,5 +1,5 @@
 /**
- * KaryaFlow API Service
+ * Gemeinsam PMS API Service
  * All API calls for project management
  */
 import { api } from "@/services/api";

@@ -83,7 +83,7 @@ export default function SettingsPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" />KaryaFlow settings</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" />Gemeinsam PMS settings</CardTitle></CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           {settings.map((item) => (
             <label key={item} className="flex items-center justify-between rounded-lg border p-4 text-sm">

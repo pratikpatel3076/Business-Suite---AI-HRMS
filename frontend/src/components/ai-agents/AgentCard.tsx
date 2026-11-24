@@ -38,7 +38,7 @@ export default function AgentCard({
         </div>
 
         <p className="line-clamp-3 min-h-[3.75rem] text-sm text-muted-foreground">
-          {agent.description || "Configured AI agent for safe business-suite assistance."}
+          {agent.description || "Configured AI agent for safe gemeinsam assistance."}
         </p>
 
         <div className="flex flex-wrap gap-2">

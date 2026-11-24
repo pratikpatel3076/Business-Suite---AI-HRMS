@@ -380,7 +380,7 @@ function CRMDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="VyaparaCRM" description="Sales command center for leads, accounts, deals, pipeline, activities, quotations, support, automation, and analytics." action="Quick create" />
+      <PageHeader title="Gemeinsam CRM" description="Sales command center for leads, accounts, deals, pipeline, activities, quotations, support, automation, and analytics." action="Quick create" />
       {leadState.error || dealState.error || stageState.error ? <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">{leadState.error || dealState.error || stageState.error}</div> : null}
       {leadState.loading || dealState.loading || stageState.loading ? <div className="rounded-md border bg-card px-4 py-3 text-sm text-muted-foreground">Loading CRM dashboard...</div> : null}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">

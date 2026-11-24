@@ -1,5 +1,5 @@
 /**
- * KaryaFlow - Project Management Types
+ * Gemeinsam PMS - Project Management Types
  * Complete TypeScript interfaces for all project management entities
  */
 

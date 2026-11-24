@@ -38,7 +38,7 @@ const lanes = ["Backlog", "Selected", "In Progress", "In Review", "Done"] as con
 
 export default function SoftwarePlanningPage() {
   const [issues, setIssues] = useState<WorkIssue[]>(() => {
-    const stored = localStorage.getItem("karyaflow-software-issues");
+    const stored = localStorage.getItem("gemeinsam-software-issues");
     return stored ? JSON.parse(stored) : WorkIssues;
   });
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -53,7 +53,7 @@ export default function SoftwarePlanningPage() {
   const completedPoints = issues.filter((issue) => issue.sprint === "Sprint 24" && issue.status === "Done").reduce((sum, issue) => sum + issue.storyPoints, 0);
 
   useEffect(() => {
-    localStorage.setItem("karyaflow-software-issues", JSON.stringify(issues));
+    localStorage.setItem("gemeinsam-software-issues", JSON.stringify(issues));
   }, [issues]);
 
   const onDragStart = (event: DragStartEvent) => setActiveId(event.active.id as number);
@@ -93,7 +93,7 @@ export default function SoftwarePlanningPage() {
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h1 className="page-title">Software Delivery</h1>
-          <p className="page-description">KaryaFlow planning for backlog, sprints, boards, releases, roadmaps, reports, automation, dependencies, and development workflows.</p>
+          <p className="page-description">Gemeinsam PMS planning for backlog, sprints, boards, releases, roadmaps, reports, automation, dependencies, and development workflows.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline"><GitBranch className="h-4 w-4" />Connect repo</Button>

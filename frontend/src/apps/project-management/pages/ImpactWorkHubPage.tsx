@@ -78,7 +78,7 @@ export default function ImpactWorkHubPage() {
         boardStatus: "To Do",
         priority: "Medium" as const,
         assignee: item.assignee,
-        reporter: "KaryaFlow AI",
+        reporter: "Gemeinsam PMS AI",
         storyPoints: 3,
         sprint: "Sprint 24",
         epic: "Client Experience",

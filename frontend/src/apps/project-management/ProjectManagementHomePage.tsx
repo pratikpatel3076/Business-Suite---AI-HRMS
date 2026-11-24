@@ -7,7 +7,7 @@ import { projectsAPI } from "./services/api";
 import { PMSProject } from "./types";
 
 /**
- * KaryaFlow - Project Management Home Page
+ * Gemeinsam PMS - Project Management Home Page
  * Main dashboard and entry point
  */
 const ProjectManagementHomePage: React.FC = () => {
@@ -54,7 +54,7 @@ const ProjectManagementHomePage: React.FC = () => {
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading KaryaFlow...</p>
+          <p className="text-gray-600">Loading Gemeinsam PMS...</p>
         </div>
       </div>
     );
@@ -71,7 +71,7 @@ const ProjectManagementHomePage: React.FC = () => {
                 <Kanban className="text-white" size={32} />
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-gray-900">KaryaFlow</h1>
+                <h1 className="text-4xl font-bold text-gray-900">Gemeinsam PMS</h1>
                 <p className="text-gray-500 mt-1">Project Management & Collaboration Platform</p>
               </div>
             </div>
@@ -107,7 +107,7 @@ const ProjectManagementHomePage: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold text-blue-700">
                 <Sparkles className="h-4 w-4" />
-                KaryaFlow enterprise work layer added
+                Gemeinsam PMS enterprise work layer added
               </div>
               <h2 className="mt-2 text-xl font-bold text-gray-900">Boards, goals, dependencies, releases, reports, automation, forms, apps, workflows, security, and AI planning</h2>
               <p className="mt-1 text-sm text-gray-600">Open the command center or product launch workspace for the complete project experience.</p>
@@ -142,7 +142,7 @@ const ProjectManagementHomePage: React.FC = () => {
               No projects yet
             </h3>
             <p className="text-gray-600 mb-8 max-w-md mx-auto">
-              Create your first project to get started with KaryaFlow's powerful project management capabilities.
+              Create your first project to get started with Gemeinsam PMS's powerful project management capabilities.
             </p>
             <button
               onClick={handleCreateProject}

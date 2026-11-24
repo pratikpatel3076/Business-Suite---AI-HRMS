@@ -1,5 +1,5 @@
 /**
- * KaryaFlow Zustand Store
+ * Gemeinsam PMS Zustand Store
  * Global state management for project management
  */
 import { create } from "zustand";

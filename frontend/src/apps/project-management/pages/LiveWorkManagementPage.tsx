@@ -97,7 +97,7 @@ export default function LiveWorkManagementPage() {
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h1 className="page-title">Live Work Management</h1>
-          <p className="page-description">KaryaFlow drag/drop for project status, tickets, tasks, teammates, and teams with realtime cross-tab activity sync.</p>
+          <p className="page-description">Gemeinsam PMS drag/drop for project status, tickets, tasks, teammates, and teams with realtime cross-tab activity sync.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline"><UserPlus className="h-4 w-4" />Add teammate</Button>

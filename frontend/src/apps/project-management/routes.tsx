@@ -36,7 +36,7 @@ const PortfolioPage = React.lazy(() => import("./pages/PortfolioPage"));
 const RisksPage = React.lazy(() => import("./pages/RisksPage"));
 
 /**
- * KaryaFlow Routes
+ * Gemeinsam PMS Routes
  * Complete routing for Project Management module
  */
 export const projectManagementRoutes: FrontendRoute[] = [
@@ -72,7 +72,7 @@ export const projectManagementRoutes: FrontendRoute[] = [
   { path: "pms/tasks/:taskId", element: <TaskDetail /> },
   { path: "pms/projects/:projectId/tasks/:taskId", element: <TaskDetail /> },
 
-  // KaryaFlow software delivery workspaces
+  // Gemeinsam PMS software delivery workspaces
   { path: "pms/work-hub", element: <ImpactWorkHubPage /> },
   { path: "pms/impact", element: <ImpactWorkHubPage /> },
   { path: "pms/ai-planner", element: <ImpactWorkHubPage /> },
