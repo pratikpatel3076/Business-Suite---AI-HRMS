@@ -3,7 +3,7 @@
 Date: 2026-05-01
 Last updated: 2026-05-02
 
-This compares the current AI HRMS implementation with the top 10 HRMS/HCM products globally and in India, identifies what is lacking, and prescribes the modifications required.
+This compares the current Gemeinsam implementation with the top 10 HRMS/HCM products globally and in India, identifies what is lacking, and prescribes the modifications required.
 
 ## Reference Products (Top 10)
 

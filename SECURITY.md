@@ -6,7 +6,7 @@ Security fixes are applied to the current `main` branch and to active release br
 
 ## Reporting a vulnerability
 
-Please **do not open a public issue** for an unpatched vulnerability. Email the maintainers at `security@aihrms.com` with:
+Please **do not open a public issue** for an unpatched vulnerability. Email the maintainers at `security@gemeinsam.example` with:
 
 - affected commit/tag and deployment environment;
 - reproduction steps or a proof of concept;
