@@ -57,7 +57,7 @@ export default function AutomationAIPage() {
             <div className="mt-5 rounded-xl border-2 border-blue-400 bg-white p-4 shadow-sm">
               <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} className="min-h-28 w-full resize-none border-0 text-lg outline-none" />
               <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-3 text-muted-foreground"><Sparkles className="h-6 w-6 text-blue-600" />Karya AI is ready to generate a rule.</div>
+                <div className="flex items-center gap-3 text-muted-foreground"><Sparkles className="h-6 w-6 text-blue-600" />Gemeinsam AI is ready to generate a rule.</div>
                 <div className="flex gap-2"><Button variant="outline">Cancel <Badge variant="outline">Esc</Badge></Button><Button onClick={generateRule}><Bot className="h-4 w-4" />Generate rule</Button></div>
               </div>
             </div>
