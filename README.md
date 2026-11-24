@@ -1,153 +1,114 @@
 # Gemeinsam
 
-Gemeinsam is a modular ERP platform for HRMS, Project Management, CRM, and future business apps. The current HRMS app combines core HR, employee self-service, payroll, attendance, leave, documents, compliance, talent, analytics, and AI-assisted workflows in one platform.
+Gemeinsam is a modular HRMS/ERP platform with separate HRMS, CRM, and Project Management apps sharing one FastAPI backend and React frontend.
 
-## Naming
+Modular HRMS/ERP platform (HRMS, CRM, Project Management). Portfolio project, security-hardened; see docs/security/AUDIT.md for what was verified and what is still open.
 
-Gemeinsam was previously known as AI HRMS, Business Suite, KaryaFlow, and Vyapara. Older links, bookmarks, and search results may still reference those former names.
+## Implemented vs experimental
 
-## Highlights
+Statuses are based on registered routers, existing tests, and explicit gaps in [docs/todo.md](docs/todo.md). "Working" means the module has routes and test coverage; it does not mean every external integration is live.
 
-- Role-based access for Admin, HR, Manager, CEO, and Employee users
-- Employee master data with lifecycle events, documents, certificates, profile completeness, and change approvals
-- Employee self-service portal for payslips, leave, attendance, documents, goals, tickets, and assets
-- Manager dashboard with team attendance, approvals, calendar, birthdays, and work anniversaries
-- Leave management with leave types, balances, ledger, requests, approval/rejection, and team calendar
-- Attendance with check-in/out, shifts, holidays, roster foundation, regularization, geo/biometric foundations, and monthly summaries
-- Payroll setup wizard for legal entity, pay group, salary components, salary structures, tax cycle, and statutory profiles
-- Payroll run console with pre-run checks, employee worksheet, reprocess, approval, exports, payment batch, GL journal, and variance review
-- Payslip viewer with HTML preview, PDF generation, print-friendly styling, and bulk publish/email action
-- India payroll and compliance foundations for PF, ESI, PT, LWF, gratuity, TDS, Form 16, 24Q, challans, and statutory calendar
-- Benefits administration for plans, enrollments, flexi benefits, claims, payroll deductions, ESOP grants, and vesting
-- Recruitment, onboarding, background verification, performance, 360 feedback, competencies, skill gaps, and compensation planning foundations
-- Engagement module with announcements, polls, recognition wall, reactions, and people moments
-- Helpdesk with categories, tickets, replies, SLA tracking, escalation, knowledge base, and AI reply support
-- Dynamic custom fields, custom forms, report builder foundations, DE&I analytics, and governed metrics
-- Real-time org chart, global search, breadcrumbs, keyboard shortcuts, session timeout warning, and responsive PWA foundation
-- Audit logs, error logs, sessions, MFA method records, password policies, consent, retention, legal hold, webhooks, and integration events
-- AI assistant foundation for HR, payroll, documents, benefits, performance, hiring, and operations queries
+| Module | Status | Basis |
+| --- | --- | --- |
+| HRMS core (org structure, employees, attendance, leave, documents, helpdesk) | Working | `backend/app/api/v1/` routers; `test_employees.py`, `test_attendance.py`, `test_leave.py`, `test_document_governance.py` |
+| Recruitment and onboarding | Working | `recruitment.py`, `onboarding.py` routers; `test_top_gap_closure.py`, `test_new_hrms_modules.py` |
+| Payroll, tax, and statutory calculations | Partial | 142-route payroll API; `test_payroll_*` suites; portal conformance, real Form 16 DSC, and e-filing remain open in `docs/todo.md` |
+| CRM records, pipeline, activities, approvals | Working | `backend/app/apps/crm/api/router.py`; `test_crm_rest_api.py` covers tenant-scoped CRUD |
+| CRM mail, SMS, WhatsApp, and calendar providers | Experimental | Mock/placeholder adapters in `app/apps/crm/api/router.py`; Google/Outlook adapters have TODO configuration points |
+| Project Management (boards, tasks, sprints, reports) | Working | `backend/app/apps/project_management/api/router.py`; `test_pms_project_access.py` |
+| AI agents | Experimental | Conversation, approval, and audit routes exist, but `app/ai_agents/api.py` returns `AI_ENGINE_PLACEHOLDER` ("AI engine is not connected yet") |
+| Background verification | Partial | Vendor/request/check CRUD and signed webhook tests; vendor API submission is recorded, not integrated with a real provider |
+| Workflow engine and notifications | Partial | `workflow_engine.py` and `notifications.py` routers; `test_workflow_engine_depth.py`, `test_notifications.py`; `docs/todo.md` still lists retry workers |
+| SSO and MFA | Partial | OIDC initiate/callback in `sso.py`; `sso.py` returns "SAML not yet implemented"; MFA verification routes exist but rollout policy remains open |
+| WhatsApp ESS | Partial | Templates, opt-in, inbound intents, and outbound queue in `whatsapp_ess.py`; outbound messages are stored as `Queued`, with no Meta Cloud API dispatch |
+| Biometric and geo attendance | Partial | Device/import and proof foundations in `attendance.py`; vendor SDK sync and mobile capture are open in `docs/todo.md` |
+| Custom fields, forms, reports, and analytics | Partial | `custom_fields.py` and `reports.py` routers; `test_custom_forms_dei.py`; `docs/todo.md` describes analytics as basic |
 
-## Tech Stack
+## Tech stack
 
-- Backend: FastAPI, SQLAlchemy, Alembic, Pydantic, JWT auth
-- Database: MySQL in production, SQLite-friendly local/test setup
-- Frontend: React, TypeScript, Vite, Tailwind CSS, React Query, Zustand
-- Reporting/files: CSV exports, payslip PDF generation, upload storage
-- AI integrations: OpenAI and Anthropic-ready service layer
+- Backend: Python 3.12, FastAPI 0.165.0, SQLAlchemy 2.0.30, Alembic 1.13.1, Pydantic 2.14.4, Celery 5.4.0, Redis 5.0.6.
+- Database: MySQL 8 in the Compose stack; SQLite in-memory for tests. The database name is `ai_hrms` in `docker-compose.yml`, `backend/.env.example`, and CI.
+- Frontend: React 18.3.1, TypeScript 5.2.2, Vite 8.3.8, React Router 7.18.6, TanStack Query 5.45.0, Zustand 4.5.2, Tailwind CSS 3.4.4.
+- Tooling: pytest 9.2.0, Ruff 0.17.6, pip-audit 2.10.1, npm audit in CI.
 
-## Repository Structure
+## Quick start with Docker
 
-```text
-backend/                 FastAPI API, models, schemas, CRUD, migrations, tests
-backend/app/apps/        Deployable app modules: HRMS, CRM, Project Management
-backend/app/common/      Notes for shared backend platform boundaries
-frontend/                React/Vite shell, shared services, UI components
-frontend/src/apps/       Deployable frontend modules: HRMS, CRM, Project Management
-frontend/src/common/     Notes for shared frontend platform boundaries
-docs/                    Gap analysis, todo list, implementation notes
+Set `SECRET_KEY`, `REFRESH_SECRET_KEY`, `ENCRYPTION_KEY`, `REDIS_URL`, `ENVIRONMENT`, and `SEED_DEMO_DATA` in your shell or `backend/.env` (see `backend/.env.example`). Generate three distinct secrets of at least 32 characters. Use `ENVIRONMENT=development` and `SEED_DEMO_DATA=false` locally; Compose supplies the container Redis URL.
+
+```bash
+docker-compose up
 ```
 
-## Multi-App Deployment
+Create the first administrator (the script prompts for missing values and enforces the password policy):
 
-The suite can load only selected product modules.
+```bash
+docker-compose exec -e ADMIN_EMAIL=you@example.com -e ADMIN_PASSWORD='<your-password>' api python scripts/create_admin.py
+```
+
+No default passwords are provided. Replace the placeholders with your own values.
+
+## Local development
 
 Backend:
-
-```env
-INSTALLED_APPS=hrms
-```
-
-```env
-INSTALLED_APPS=crm,project_management
-```
-
-Frontend:
-
-```env
-VITE_INSTALLED_APPS=hrms
-```
-
-```env
-VITE_INSTALLED_APPS=crm,project_management
-```
-
-See `docs/multi_app_architecture.md` for the module split and next cleanup
-step around common people/profile data.
-
-## Local Backend Setup
 
 ```bash
 cd backend
 python -m venv venv
 venv\Scripts\activate
 python -m pip install -r requirements.txt
-python scripts/init_schema.py
+set ENVIRONMENT=development
+set DATABASE_URL=mysql+pymysql://<user>:<password>@localhost:3306/ai_hrms
 uvicorn app.main:app --reload --port 8000
 ```
 
-Create a backend `.env` when needed:
+On macOS/Linux use `source venv/bin/activate`, `export ENVIRONMENT=development`, and `export DATABASE_URL=...`.
 
-```env
-DATABASE_URL=mysql+pymysql://user:password@host:3306/ai_hrms
-BACKEND_CORS_ORIGINS=http://localhost:5173,http://localhost:5174
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-```
-
-### Database schema and migrations
-
-Use `python scripts/init_schema.py` for a **fresh, empty database**. It loads the common models plus the models of every installed app, creates the tables, and stamps the single Alembic head, so a following `alembic upgrade head` is a no-op. It refuses to run when an `alembic_version` table or any application table already exists; `--force` is the only override and should be used deliberately.
-
-For an **existing database**, always use `alembic upgrade head` — never `init_schema.py`.
-
-Set `INSTALLED_APPS` before initializing so every app you intend to use gets its tables (for example `INSTALLED_APPS=hrms,crm,project_management`).
-
-**KNOWN OPEN DEFECT — replaying the full Alembic chain on an empty database is broken.** Revision `20260430_001_initial_hrms_schema.py` uses `Base.metadata.create_all()` against live metadata instead of a frozen baseline, so later revisions re-add the same columns and fail (for example `duplicate column name: interests`). Fresh installs therefore use `init_schema.py`. Proposed fix: freeze the initial schema in revision 001, then re-verify the full chain from an empty MySQL database. This defect is **not fixed**.
-
-### Development-only demo data
-
-Demo users and sample CRM records are **not** part of a normal installation. They are created only when both `ENVIRONMENT != production` and `SEED_DEMO_DATA=true` are set, and they are intended strictly for local development and automated tests. Never use demo credentials outside a disposable environment. For a production deployment, create the first administrator explicitly:
-
-```bash
-cd backend
-ADMIN_EMAIL=ops@example.com ADMIN_PASSWORD='<strong-password>' python scripts/create_admin.py
-```
-
-`ADMIN_EMAIL`/`ADMIN_PASSWORD` may be omitted to use interactive prompts. The password must be at least 12 characters and include uppercase, lowercase, and numeric characters.
-
-## Local Frontend Setup
+Frontend:
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-Optional frontend `.env`:
-
-```env
-VITE_API_BASE_URL=http://localhost:8000/api/v1
-```
-
-## Common Commands
+Tests and schema:
 
 ```bash
-# Backend tests
 cd backend
 pytest
-
-# Frontend production build
-cd frontend
-npm run build
+python scripts/init_schema.py
+alembic upgrade head
 ```
 
-## Deployment Notes
+Use `python scripts/init_schema.py` only for an empty database; it creates the current schema and stamps the Alembic head. Use `alembic upgrade head` for existing databases. Replaying the full migration chain on an empty database is a known open defect; see [docs/security/AUDIT.md](docs/security/AUDIT.md).
 
-- Backend and frontend are designed to be hosted separately.
-- Frontend API routing is controlled by `VITE_API_BASE_URL` / runtime config.
-- Backend database configuration is controlled by `DATABASE_URL`.
-- Upload folders are runtime storage and are intentionally ignored by git.
+## Security summary
 
-## Current Product Status
+- Refresh tokens are HttpOnly, Secure outside local development, and SameSite=Strict cookies; access tokens stay in memory. Refresh and logout require an allowed Origin/Referer and `X-CSRF-Token`.
+- Uploads are authorized by path prefix and record ownership; downloads use 60-second HMAC-signed single-path URLs instead of query-string tokens.
+- Inbound webhooks use HMAC-SHA256 verification over the raw body with a replay window; background-verification secrets are encrypted at rest.
+- Login and MFA verification are limited to 5/minute per IP and per account; refresh is 30/minute per IP, with Redis-backed counters.
+- Production validates distinct, non-placeholder secrets and explicit CORS origins; `ENVIRONMENT` is restricted to development, test, and production.
+- Production schema changes are Alembic-only; startup schema creation is gated to development and test.
+- CI runs pytest, Ruff, an Alembic round trip on MySQL 8, pip-audit, npm ci, npm run build, and npm audit. See [.github/workflows/ci.yml](.github/workflows/ci.yml).
+- Open verification gaps and accepted residual risks are recorded in [SECURITY.md](SECURITY.md) and [docs/security/AUDIT.md](docs/security/AUDIT.md).
 
-The project has moved beyond MVP into a broad HRMS foundation with production-grade database/API coverage across HR, payroll, compliance, talent, documents, workflow, and analytics. Some modules still need final production integrations such as government portal connectors, e-sign, biometric vendor SDKs, WhatsApp Business dispatch, SSO, and scheduled report exports.
+## Project layout
+
+```text
+.github/workflows/   CI jobs
+backend/             FastAPI app, models, Alembic revisions, scripts, tests
+docs/                audit, architecture notes, backlog
+frontend/            React/Vite app
+```
+
+## Clone
+
+```bash
+git clone https://github.com/pratikpatel3076/gemeinsam.git
+cd gemeinsam
+```
+
+## Naming
+
+Gemeinsam was previously known as AI HRMS, Business Suite, KaryaFlow, and Vyapara. Older links, bookmarks, and search results may still reference those former names.
